@@ -93,3 +93,17 @@ The Vite app implements `/`, `/app`, `/app/rounds`, `/app/rounds/new`,
 HTTP smoke checks returned 200 for each route while the dev server was running.
 Automated browser/screenshot tooling was unavailable in this environment, so
 the visual browser pass remains outstanding.
+
+## Product experience checkpoint
+
+The application shell now uses one restrained dark graphite theme with warm
+gold decision accents, semantic state colors, compact navigation, responsive
+round cards, a rubric-first create flow, finalist evidence cards, evaluation
+confirmation, winner/inconclusive result surfaces, and a persistent activity
+indicator. The primary UI breakpoints are 960px, 760px, and 480px; focus-visible
+states and reduced-motion handling are included.
+
+Vite now separates the application from heavy static dependencies. The prior
+569.47 KB application chunk became approximately 57.87 KB, with a 448.67 KB
+GenLayer runtime chunk and an 85.95 KB vendor chunk. This is a loading split,
+not a removal of the required GenLayer client.

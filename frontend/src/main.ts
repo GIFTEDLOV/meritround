@@ -12,9 +12,11 @@ import {
   type RoundView,
   type SubmissionView,
   type TransactionRecord,
+  type TransactionPhase,
   type WalletState,
   WalletError,
 } from "./meritroundClient";
+import { activityStepIndex, stateLabel as uiStateLabel } from "./uiModel";
 
 const config = loadMeritRoundConfig();
 const transactionStore = createBrowserTransactionStore();
@@ -38,6 +40,52 @@ const STATES: RoundState[] = [
   "INCONCLUSIVE",
 ];
 
+const STATE_META: Record<RoundState, { label: string; title: string; description: string }> = {
+  DRAFT: {
+    label: "Draft",
+    title: "Preparing this round",
+    description: "Review the rubric, then open the round when you are ready to accept finalists.",
+  },
+  OPEN: {
+    label: "Open",
+    title: "Accepting finalists",
+    description: "Submissions can be added while the organizer prepares the final set.",
+  },
+  LOCKED: {
+    label: "Locked",
+    title: "Finalists locked",
+    description: "The rubric, finalist set, and evidence commitments are frozen for evaluation.",
+  },
+  EVALUATING: {
+    label: "Evaluating",
+    title: "Validators are reviewing",
+    description: "The evaluation transaction is moving through decision and finality checks.",
+  },
+  FINALIZED: {
+    label: "Finalized",
+    title: "Decision finalized",
+    description: "The contract has stored a canonical result against the locked evaluation universe.",
+  },
+  INCONCLUSIVE: {
+    label: "Inconclusive",
+    title: "No winner established",
+    description: "Validators did not establish a canonical winner. No finalist was selected by default.",
+  },
+};
+
+const TX_PHASE_META: Record<TransactionPhase, { label: string; short: string }> = {
+  PREPARING: { label: "Preparing", short: "Preparing" },
+  WAITING_FOR_WALLET: { label: "Waiting for wallet", short: "Wallet" },
+  SUBMITTED: { label: "Submitted", short: "Submitted" },
+  QUEUED: { label: "Validators processing", short: "Processing" },
+  DECISION_AVAILABLE: { label: "Decision available", short: "Decision" },
+  WAITING_FOR_FINALITY: { label: "Waiting for finality", short: "Finalizing" },
+  EXECUTION_VERIFIED: { label: "Execution verified", short: "Verified" },
+  RESOLVED: { label: "Result confirmed", short: "Completed" },
+  FAILED: { label: "Action failed", short: "Failed" },
+  TRACKING_INTERRUPTED: { label: "Tracking interrupted", short: "Recoverable" },
+};
+
 function escapeHtml(value: unknown): string {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -49,17 +97,19 @@ function escapeHtml(value: unknown): string {
 
 function shorten(value: string, length = 10): string {
   if (value.length <= length * 2 + 3) return value;
-  return `${value.slice(0, length)}…${value.slice(-length)}`;
+  return `${value.slice(0, length)}...${value.slice(-length)}`;
 }
 
 function formatDate(value?: string): string {
-  if (!value) return "—";
+  if (!value) return "Not recorded";
   const date = new Date(value);
-  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+  return Number.isNaN(date.valueOf())
+    ? value
+    : date.toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 }
 
 function stateLabel(state: string): string {
-  return state.replaceAll("_", " ").toLowerCase().replace(/(^| )\w/g, (character) => character.toUpperCase());
+  return uiStateLabel(state);
 }
 
 function stateClass(state: string): string {
@@ -72,9 +122,16 @@ function networkLabel(): string {
 
 function walletLabel(): string {
   if (wallet.status === "unavailable") return "Wallet unavailable";
-  if (wallet.status === "wrong-network") return "Wrong network";
+  if (wallet.status === "wrong-network") return "Switch network";
   if (wallet.status === "connected" && wallet.address) return shorten(wallet.address, 6);
   return "Connect wallet";
+}
+
+function walletStatusCopy(): string {
+  if (wallet.status === "unavailable") return "No browser wallet detected";
+  if (wallet.status === "wrong-network") return `Switch to ${networkLabel()} to write`;
+  if (wallet.status === "connected" && wallet.address) return "Connected for organizer actions";
+  return "Read-only until a wallet connects";
 }
 
 function setNotice(message: string, tone: "info" | "error" | "success" = "info"): void {
@@ -105,15 +162,25 @@ function navigate(path: string): void {
   void render();
 }
 
+function pendingTransactions(): TransactionRecord[] {
+  return transactionStore.list().filter((record) => !record.terminal);
+}
+
+function transactionIndicator(): string {
+  const pending = pendingTransactions();
+  if (!pending.length) return "";
+  return `<a class="tx-indicator" data-link href="/app/activity" aria-label="Open transaction activity"><span class="pulse-dot"></span><span>${pending.length} transaction${pending.length === 1 ? "" : "s"} processing</span></a>`;
+}
+
 function shell(content: string, active = ""): string {
   const link = (href: string, label: string, key: string) =>
     `<a class="nav-link ${active === key ? "nav-link-active" : ""}" data-link href="${href}">${label}</a>`;
   return `
     <header class="topbar">
       <div class="topbar-inner">
-        <a class="brand" data-link href="/">
+        <a class="brand" data-link href="/" aria-label="MeritRound home">
           <span class="brand-mark">MR</span>
-          <span>MeritRound</span>
+          <span class="brand-name">MeritRound</span>
         </a>
         <nav class="desktop-nav" aria-label="Primary navigation">
           ${link("/app", "Overview", "app")}
@@ -121,18 +188,29 @@ function shell(content: string, active = ""): string {
           ${link("/app/activity", "Activity", "activity")}
         </nav>
         <div class="topbar-actions">
-          <span class="network-chip"><span class="status-dot"></span>${networkLabel()}</span>
-          <button class="button button-small button-quiet" data-action="connect-wallet">${escapeHtml(walletLabel())}</button>
+          ${transactionIndicator()}
+          <span class="network-chip"><span class="status-dot"></span><span>${networkLabel()}</span></span>
+          ${active ? `<a class="button button-small button-top-action" data-link href="/app/rounds/new">New round <span>+</span></a>` : ""}
+          <button class="button button-small button-wallet" data-action="${wallet.status === "wrong-network" ? "switch-network" : "connect-wallet"}">${escapeHtml(walletLabel())}</button>
+          <details class="mobile-menu">
+            <summary aria-label="Open navigation menu">Menu</summary>
+            <div class="mobile-menu-panel">
+              ${link("/app", "Overview", "app")}
+              ${link("/app/rounds", "Rounds", "rounds")}
+              ${link("/app/activity", "Activity", "activity")}
+              <a class="nav-link" data-link href="/app/rounds/new">New round</a>
+            </div>
+          </details>
         </div>
       </div>
     </header>
     <main class="page-shell">
-      ${notice ? `<div class="notice notice-${notice.tone}" role="status">${escapeHtml(notice.message)}</div>` : ""}
+      ${notice ? `<div class="notice notice-${notice.tone}" role="status"><span class="notice-icon">${notice.tone === "error" ? "!" : notice.tone === "success" ? "OK" : "i"}</span><span>${escapeHtml(notice.message)}</span></div>` : ""}
       ${content}
     </main>
     <footer class="footer">
-      <span>MeritRound · Validator-backed selection rounds</span>
-      <span>Chain ${config.chainId} · ${networkLabel()}</span>
+      <div><span class="footer-mark">MR</span><span>MeritRound</span></div>
+      <span>Validator-backed selection rounds on ${networkLabel()} · Chain ${config.chainId}</span>
     </footer>
   `;
 }
@@ -145,7 +223,7 @@ function pageHeader(eyebrow: string, title: string, description: string, action 
         <h1>${escapeHtml(title)}</h1>
         <p class="lede">${escapeHtml(description)}</p>
       </div>
-      ${action}
+      ${action ? `<div class="page-header-action">${action}</div>` : ""}
     </section>
   `;
 }
@@ -153,121 +231,156 @@ function pageHeader(eyebrow: string, title: string, description: string, action 
 function configState(): string {
   return `
     <section class="config-state panel">
-      <span class="icon-badge">!</span>
+      <div class="state-icon state-icon-warning">!</div>
       <div>
-        <h2>Development contract not configured</h2>
+        <p class="eyebrow">Configuration required</p>
+        <h2>Connect the development contract</h2>
         <p>Reads and writes are disabled until <code>VITE_MERITROUND_CONTRACT_ADDRESS</code> is set for this environment.</p>
-        <p class="muted">The repository includes a verified Studionet deployment record, but the app never invents a fallback address.</p>
+        <div class="config-meta"><span>${networkLabel()}</span><span>Chain ${config.chainId}</span><span>No fallback address</span></div>
       </div>
     </section>
   `;
+}
+
+function statePill(state: string): string {
+  return `<span class="${stateClass(state)}"><span class="state-dot"></span>${escapeHtml(stateLabel(state))}</span>`;
+}
+
+function emptyState(title: string, description: string, action = "", icon = "0"): string {
+  return `<div class="empty-state panel"><span class="empty-index">${escapeHtml(icon)}</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p>${action}</div>`;
+}
+
+function loadingState(label = "Reading committed state..."): string {
+  return `<div class="loading-state panel"><span class="loader"></span><span>${escapeHtml(label)}</span></div>`;
+}
+
+function errorState(title: string, description: string, technical?: string): string {
+  return `<section class="error-state panel"><div class="state-icon state-icon-danger">!</div><div><p class="eyebrow">Read interrupted</p><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p>${technical ? `<details><summary>Technical details</summary><code>${escapeHtml(technical)}</code></details>` : ""}</div></section>`;
 }
 
 function landingPage(): string {
   return `
     <section class="landing-hero">
       <div class="hero-copy">
-        <p class="eyebrow">Selection infrastructure for serious rounds</p>
-        <h1>Make the decision<br /><em>the thing people trust.</em></h1>
-        <p class="hero-lede">MeritRound gives competitions, awards, accelerators, and open calls a committed rubric, committed evidence, and a neutral validator-backed result.</p>
+        <div class="hero-kicker"><span class="kicker-line"></span><span>Decision infrastructure for serious selection</span></div>
+        <h1>Choose winners<br /><em>without choosing the judge.</em></h1>
+        <p class="hero-lede">MeritRound lets organizers commit a rubric, finalist set, and exact evidence before GenLayer validators independently determine the result.</p>
         <div class="hero-actions">
-          <a class="button button-primary" data-link href="/app/rounds/new">Launch MeritRound <span>→</span></a>
-          <a class="button button-quiet" data-link href="/app/rounds">Explore rounds</a>
+          <a class="button button-primary button-large" data-link href="/app/rounds/new">Launch MeritRound <span>→</span></a>
+          <a class="button button-quiet button-large" data-link href="/app/rounds">Explore the workspace</a>
         </div>
+        <div class="hero-proof"><span class="proof-mark">✓</span><span>Locked inputs. Small canonical result. Shared state.</span></div>
       </div>
-      <div class="hero-visual" aria-label="A locked rubric flows through validators to a final result">
-        <div class="signal-card signal-rubric"><span class="signal-number">01</span><div><strong>Rubric locked</strong><small>Committed before judging</small></div></div>
-        <div class="signal-line"></div>
-        <div class="signal-card signal-evidence"><span class="signal-number">02</span><div><strong>Evidence verified</strong><small>Exact bytes · SHA-256</small></div></div>
-        <div class="signal-line"></div>
-        <div class="signal-card signal-result"><span class="signal-number">03</span><div><strong>Result agreed</strong><small>GenLayer validators</small></div><span class="result-mark">✓</span></div>
+      <div class="decision-map" aria-label="MeritRound evaluation flow">
+        <div class="map-label">Illustrative evaluation flow</div>
+        <div class="map-node map-node-primary"><span class="map-number">01</span><div><strong>Committed rubric</strong><small>Criteria written before judging</small></div><span class="node-state">SET</span></div>
+        <div class="map-connector"><span></span></div>
+        <div class="map-node"><span class="map-number">02</span><div><strong>Finalist evidence</strong><small>Exact bytes · SHA-256 commitment</small></div><span class="node-state">BOUND</span></div>
+        <div class="map-connector"><span></span></div>
+        <div class="map-node"><span class="map-number">03</span><div><strong>Evaluation lock</strong><small>Rubric and finalist universe frozen</small></div><span class="node-state">LOCKED</span></div>
+        <div class="map-connector"><span></span></div>
+        <div class="map-node map-node-result"><span class="map-number">04</span><div><strong>Validator decision</strong><small>WINNER or INCONCLUSIVE only</small></div><span class="result-check">✓</span></div>
       </div>
     </section>
-    <section class="principles-grid">
-      <article class="principle-card"><span class="principle-index">01</span><h3>Commit the universe</h3><p>Once finalists are locked, the rubric, set, evidence references, and commitments cannot quietly change.</p></article>
-      <article class="principle-card"><span class="principle-index">02</span><h3>Keep evidence untrusted</h3><p>Prompt text inside a submission is data. Exact-byte integrity is checked before semantic evaluation.</p></article>
-      <article class="principle-card"><span class="principle-index">03</span><h3>Make the result small</h3><p>Only a canonical winner ID or explicit inconclusive result can affect shared contract state.</p></article>
+    <section class="landing-section split-section">
+      <div class="section-intro"><p class="eyebrow">The trust problem</p><h2>A fair decision starts before the vote.</h2></div>
+      <div class="section-copy"><p>Organizers know the work. Participants know the stakes. The difficult question is whether the decision can be trusted after the finalist set is fixed.</p><p>MeritRound moves authority into a committed evaluation universe. The rubric, finalist submissions, and evidence commitments become inspectable shared state before semantic evaluation begins.</p></div>
     </section>
-    <section class="landing-note panel"><div class="note-rule"></div><div><p class="eyebrow">Built for the moment after the applause</p><p>Participants should be able to inspect what was committed, how the transaction progressed, and what the contract finally stored.</p></div><a data-link href="/app" class="text-link">Open the workspace →</a></section>
+    <section class="landing-section flow-section">
+      <div class="section-intro"><p class="eyebrow">How it works</p><h2>From brief to result, with the boundary visible.</h2></div>
+      <div class="flow-grid">
+        <article><span>01</span><h3>Define the rubric</h3><p>Write the criteria that the round will use. The organizer owns the brief, not the final verdict.</p></article>
+        <article><span>02</span><h3>Collect finalists</h3><p>Register submissions with HTTPS evidence references and exact SHA-256 commitments.</p></article>
+        <article><span>03</span><h3>Lock the universe</h3><p>Freeze the rubric, finalist set, and evidence commitments so they cannot shift during judging.</p></article>
+        <article><span>04</span><h3>Read the result</h3><p>GenLayer validators independently evaluate the same admissible evidence and store a tiny canonical outcome.</p></article>
+      </div>
+    </section>
+    <section class="landing-section why-section">
+      <div class="why-card"><p class="eyebrow">Why GenLayer</p><h2>Neutrality is a runtime property.</h2><p>MeritRound does not ask a backend, administrator, or single AI provider to choose a winner. The Intelligent Contract controls admissibility, consensus, strict result validation, and the final state transition.</p><a class="text-link" data-link href="/app">Open the live workspace →</a></div>
+      <div class="example-card"><div class="example-card-top"><span class="eyebrow">Illustrative round</span><span class="example-tag">Example only</span></div><h3>Community impact awards</h3><p>Rubric: measurable reach, evidence quality, and durable contribution.</p><div class="example-row"><span>Finalists</span><strong>Locked before evaluation</strong></div><div class="example-row"><span>Authority</span><strong>Canonical contract result</strong></div><div class="example-row"><span>Failure mode</span><strong>Inconclusive is explicit</strong></div></div>
+    </section>
+    <section class="landing-cta panel"><div><p class="eyebrow">Make the boundary part of the product</p><h2>Give every finalist a decision they can inspect.</h2></div><a class="button button-primary" data-link href="/app/rounds/new">Create a round <span>→</span></a></section>
   `;
 }
 
-function emptyState(title: string, description: string, action = ""): string {
-  return `<div class="empty-state panel"><span class="empty-glyph">○</span><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p>${action}</div>`;
-}
-
-function loadingState(label = "Reading committed state…"): string {
-  return `<div class="loading-state panel"><span class="loader"></span><span>${escapeHtml(label)}</span></div>`;
-}
-
-function statePill(state: string): string {
-  return `<span class="${stateClass(state)}">${escapeHtml(stateLabel(state))}</span>`;
-}
-
-function roundCard(round: RoundView): string {
+function roundCard(round: RoundView, result?: ResultView): string {
+  const count = round.finalist_ids.length || round.submission_ids.length;
+  const resultCopy = result?.exists
+    ? result.outcome === "WINNER"
+      ? `Winner ${shorten(result.submission_id ?? "", 6)}`
+      : "No winner established"
+    : `${count} finalist${count === 1 ? "" : "s"}`;
   return `
-    <a class="round-card" data-link href="/app/rounds/${round.round_id}">
+    <a class="round-card" data-link href="/app/rounds/${escapeHtml(round.round_id)}">
       <div class="round-card-top"><span class="round-id">${escapeHtml(shorten(round.round_id, 8))}</span>${statePill(round.state)}</div>
       <h3>${escapeHtml(round.title)}</h3>
       <p>${escapeHtml(round.description)}</p>
-      <div class="round-card-meta"><span>${round.finalist_ids.length || round.submission_ids.length} submissions</span><span>${escapeHtml(shorten(round.organizer, 6))}</span></div>
+      <div class="round-card-meta"><span>${escapeHtml(resultCopy)}</span><span>${escapeHtml(shorten(round.organizer, 6))}</span></div>
     </a>
   `;
 }
 
-function pendingTransactions(): TransactionRecord[] {
-  return transactionStore.list().filter((record) => !record.terminal);
+async function readRoundRegistry(): Promise<Array<{ round: RoundView; result?: ResultView }>> {
+  const ids = await client.getRoundIds();
+  const rounds = await Promise.all(ids.map((id) => client.getRound(id)));
+  const terminal = await Promise.all(rounds.map(async (round) => {
+    if (round.state !== "FINALIZED" && round.state !== "INCONCLUSIVE") return undefined;
+    try {
+      return await client.getResult(round.round_id);
+    } catch {
+      return undefined;
+    }
+  }));
+  return rounds.map((round, index) => ({ round, result: terminal[index] }));
 }
 
-function transactionTimeline(record: TransactionRecord): string {
-  const labels: Record<string, string> = {
-    SUBMITTED: "Submitted to GenLayer",
-    QUEUED: "Queued for validators",
-    DECISION_AVAILABLE: "Decision available",
-    WAITING_FOR_FINALITY: "Waiting for finality",
-    RESOLVED: "Execution verified · state read back",
-    FAILED: "Action failed",
-    TRACKING_INTERRUPTED: "Tracking interrupted · recoverable",
-  };
-  return `<div class="tx-timeline"><span class="tx-phase-dot"></span><div><strong>${escapeHtml(labels[record.phase] ?? record.phase)}</strong><small>${escapeHtml(record.method)} · ${escapeHtml(shorten(record.txId, 10))}</small></div></div>`;
+function transactionTimeline(record: TransactionRecord, compact = false): string {
+  const meta = TX_PHASE_META[record.phase];
+  return `<div class="tx-row ${record.terminal ? "tx-row-terminal" : "tx-row-live"}"><span class="tx-status-marker"></span><div class="tx-row-copy"><strong>${escapeHtml(meta.label)}</strong><span>${escapeHtml(record.method)} · ${escapeHtml(shorten(record.txId, 10))}</span></div>${compact ? "" : `<time>${escapeHtml(formatDate(record.updatedAt))}</time>`}</div>`;
 }
 
 function activityStrip(): string {
   const records = transactionStore.list().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  if (records.length === 0) return "";
-  return `
-    <section class="activity-strip panel">
-      <div class="section-heading"><div><p class="eyebrow">Your activity</p><h2>Transaction trail</h2></div><a class="text-link" data-link href="/app/activity">View all →</a></div>
-      ${records.slice(0, 3).map(transactionTimeline).join("")}
-    </section>
-  `;
+  if (!records.length) return "";
+  return `<section class="activity-strip panel"><div class="section-heading"><div><p class="eyebrow">Browser activity</p><h2>Transaction trail</h2></div><a class="text-link" data-link href="/app/activity">View activity →</a></div>${records.slice(0, 3).map((record) => transactionTimeline(record)).join("")}</section>`;
+}
+
+function walletPanel(): string {
+  const action = wallet.status === "wrong-network"
+    ? `<button class="button button-small button-secondary" data-action="switch-network">Switch network</button>`
+    : wallet.status === "connected"
+      ? `<span class="connected-label"><span class="status-dot"></span>Connected</span>`
+      : `<button class="button button-small button-quiet" data-action="connect-wallet">Connect wallet</button>`;
+  return `<div class="wallet-panel panel"><div class="wallet-panel-icon">${wallet.status === "connected" ? "✓" : "◌"}</div><div><p class="eyebrow">Wallet access</p><strong>${escapeHtml(wallet.status === "connected" && wallet.address ? shorten(wallet.address, 8) : walletStatusCopy())}</strong><p>${escapeHtml(walletStatusCopy())}</p></div>${action}</div>`;
 }
 
 async function dashboardPage(): Promise<string> {
   if (!client.isConfigured) return pageHeader("Workspace", "A clear place to decide", "Connect the deployed MeritRound contract to begin.") + configState();
-  let rounds: RoundView[];
+  let registry: Array<{ round: RoundView; result?: ResultView }>;
   try {
-    const ids = await client.getRoundIds();
-    rounds = await Promise.all(ids.map((id) => client.getRound(id)));
+    registry = await readRoundRegistry();
   } catch (error) {
-    return pageHeader("Workspace", "Unable to read the round registry", "The app could not read the configured contract.") + `<div class="error-state panel">${escapeHtml(error instanceof Error ? error.message : "Network read failed")}</div>`;
+    return pageHeader("Workspace", "Unable to read the registry", "The app could not read the configured contract.") + errorState("The round registry is unavailable", "Check the network connection and try again.", error instanceof Error ? error.message : "Network read failed");
   }
+  const rounds = registry.map((entry) => entry.round);
   const counts = STATES.reduce<Record<string, number>>((result, state) => {
     result[state] = rounds.filter((round) => round.state === state).length;
     return result;
   }, {});
   const mine = wallet.address ? rounds.filter((round) => round.organizer.toLowerCase() === wallet.address?.toLowerCase()) : [];
   return `
-    ${pageHeader("Workspace", "Selection, without the fog", "A live view of committed MeritRound state on ${networkLabel()}.", `<a class="button button-primary" data-link href="/app/rounds/new">New round <span>+</span></a>`)}
+    ${pageHeader("Overview", "Selection, without the fog", `A live view of committed round state on ${networkLabel()}.`, `<a class="button button-primary" data-link href="/app/rounds/new">Create round <span>+</span></a>`)}
+    ${walletPanel()}
     <section class="metric-grid">
-      <div class="metric-card metric-card-main"><span>Total rounds</span><strong>${rounds.length}</strong><small>Read from contract</small></div>
-      <div class="metric-card"><span>Open</span><strong>${counts.OPEN ?? 0}</strong><small>Accepting submissions</small></div>
-      <div class="metric-card"><span>In review</span><strong>${(counts.LOCKED ?? 0) + (counts.EVALUATING ?? 0)}</strong><small>Locked or evaluating</small></div>
-      <div class="metric-card"><span>Decided</span><strong>${(counts.FINALIZED ?? 0) + (counts.INCONCLUSIVE ?? 0)}</strong><small>Terminal results</small></div>
+      <div class="metric-card metric-card-feature"><span>Total rounds</span><strong>${rounds.length}</strong><small>Committed on-chain</small><i>Registry</i></div>
+      <div class="metric-card"><span>Open</span><strong>${counts.OPEN ?? 0}</strong><small>Accepting finalists</small></div>
+      <div class="metric-card"><span>In evaluation</span><strong>${(counts.LOCKED ?? 0) + (counts.EVALUATING ?? 0)}</strong><small>Locked or reviewing</small></div>
+      <div class="metric-card"><span>Completed</span><strong>${(counts.FINALIZED ?? 0) + (counts.INCONCLUSIVE ?? 0)}</strong><small>Terminal results</small></div>
     </section>
+    ${pendingTransactions().length ? `<section class="pending-panel panel"><div><p class="eyebrow">Needs attention</p><h2>${pendingTransactions().length} transaction${pendingTransactions().length === 1 ? "" : "s"} still processing</h2><p>MeritRound is tracking the same transaction ID. Refreshing will not create another write.</p></div><a class="button button-secondary" data-link href="/app/activity">Open activity</a></section>` : ""}
     <section class="dashboard-columns">
-      <div><div class="section-heading"><div><p class="eyebrow">Registry</p><h2>Recent rounds</h2></div><a class="text-link" data-link href="/app/rounds">All rounds →</a></div>${rounds.length ? `<div class="round-grid">${rounds.slice(-4).reverse().map(roundCard).join("")}</div>` : emptyState("Nothing committed yet", "Create the first round and give the judging universe a clear boundary.", `<a class="button button-primary" data-link href="/app/rounds/new">Create first round</a>`)}</div>
-      <aside class="aside-stack"><div class="principle-card principle-card-dark"><p class="eyebrow">Your rounds</p><strong>${mine.length}</strong><p>${wallet.address ? "Rounds organized by the connected wallet." : "Connect a wallet to see your organizer activity."}</p><a data-link href="/app/rounds" class="text-link">Browse registry →</a></div>${activityStrip()}</aside>
+      <div><div class="section-heading"><div><p class="eyebrow">Live registry</p><h2>Recent rounds</h2></div><a class="text-link" data-link href="/app/rounds">Browse all →</a></div>${rounds.length ? `<div class="round-grid">${registry.slice(-4).reverse().map((entry) => roundCard(entry.round, entry.result)).join("")}</div>` : emptyState("Nothing committed yet", "Create the first round and give the judging universe a clear boundary.", `<a class="button button-primary" data-link href="/app/rounds/new">Create first round</a>`, "01")}</div>
+      <aside class="aside-stack"><div class="organizer-card"><p class="eyebrow">Your workspace</p><strong>${mine.length}</strong><p>${wallet.address ? "rounds organized by this wallet" : "Connect a wallet to see organizer activity"}</p><a data-link href="/app/rounds" class="text-link">Browse the registry →</a></div>${activityStrip()}</aside>
     </section>
   `;
 }
@@ -276,41 +389,88 @@ async function roundsPage(): Promise<string> {
   if (!client.isConfigured) return pageHeader("Registry", "Rounds", "Every card below comes from contract readback.") + configState();
   const filter = new URLSearchParams(window.location.search).get("state") || "ALL";
   try {
-    const rounds = await Promise.all((await client.getRoundIds()).map((id) => client.getRound(id)));
-    const visible = filter === "ALL" ? rounds : rounds.filter((round) => round.state === filter);
+    const registry = await readRoundRegistry();
+    const visible = filter === "ALL" ? registry : registry.filter((entry) => entry.round.state === filter);
     return `
-      ${pageHeader("Registry", "Rounds", "Inspect the state of every round without relying on an off-chain index.", `<a class="button button-primary" data-link href="/app/rounds/new">New round <span>+</span></a>`)}
-      <div class="filter-bar panel"><span class="filter-label">Filter by state</span><div class="filter-pills"><a data-link class="filter-pill ${filter === "ALL" ? "filter-pill-active" : ""}" href="/app/rounds">All <span>${rounds.length}</span></a>${STATES.map((state) => `<a data-link class="filter-pill ${filter === state ? "filter-pill-active" : ""}" href="/app/rounds?state=${state}">${stateLabel(state)} <span>${rounds.filter((round) => round.state === state).length}</span></a>`).join("")}</div></div>
-      ${visible.length ? `<div class="round-grid round-grid-wide">${visible.map(roundCard).join("")}</div>` : emptyState(filter === "ALL" ? "No rounds yet" : `No ${stateLabel(filter).toLowerCase()} rounds`, "Try another state or create the next round.", `<a class="button button-primary" data-link href="/app/rounds/new">Create a round</a>`)}
+      ${pageHeader("Registry", "Rounds", "A professional directory of committed selection rounds.", `<a class="button button-primary" data-link href="/app/rounds/new">New round <span>+</span></a>`)}
+      <div class="filter-bar panel"><span class="filter-label">Round state</span><div class="filter-pills"><a data-link class="filter-pill ${filter === "ALL" ? "filter-pill-active" : ""}" href="/app/rounds">All <span>${registry.length}</span></a>${STATES.map((state) => `<a data-link class="filter-pill ${filter === state ? "filter-pill-active" : ""}" href="/app/rounds?state=${state}">${escapeHtml(stateLabel(state))} <span>${registry.filter((entry) => entry.round.state === state).length}</span></a>`).join("")}</div></div>
+      ${visible.length ? `<div class="round-grid round-grid-wide">${visible.map((entry) => roundCard(entry.round, entry.result)).join("")}</div>` : emptyState(filter === "ALL" ? "No rounds yet" : `No ${stateLabel(filter).toLowerCase()} rounds`, "Try another state or create the next round.", `<a class="button button-primary" data-link href="/app/rounds/new">Create a round</a>`, "00")}
     `;
   } catch (error) {
-    return pageHeader("Registry", "Rounds", "The contract registry could not be read.") + `<div class="error-state panel">${escapeHtml(error instanceof Error ? error.message : "Network read failed")}</div>`;
+    return pageHeader("Registry", "Rounds", "The contract registry could not be read.") + errorState("Rounds are unavailable", "The network did not return a usable registry read.", error instanceof Error ? error.message : "Network read failed");
   }
 }
 
 function newRoundPage(): string {
   return `
-    ${pageHeader("New round", "Define the decision", "Write the rubric once. The contract will hold the authoritative round state.", `<a class="text-link" data-link href="/app/rounds">Back to rounds</a>`)}
+    ${pageHeader("New round", "Define the decision", "A focused workflow for writing the rubric that finalists will be judged against.", `<a class="text-link" data-link href="/app/rounds">Back to rounds</a>`)}
+    <div class="workflow-steps"><div class="workflow-step workflow-step-active"><span>01</span><strong>Details</strong><small>What is being selected?</small></div><div class="workflow-step"><span>02</span><strong>Rubric</strong><small>How will it be judged?</small></div><div class="workflow-step"><span>03</span><strong>Review</strong><small>Commit the brief</small></div></div>
     <form class="form-layout panel" data-form="create-round">
-      <div class="form-main"><label>Round title<input required name="title" maxlength="160" placeholder="e.g. Spring design challenge" /></label><label>Description<textarea required name="description" maxlength="4000" rows="4" placeholder="What is this round selecting, and who is it for?"></textarea></label><label>Committed rubric<textarea required name="rubric" maxlength="12000" rows="10" placeholder="Describe the criteria, weighting, and what a strong submission demonstrates."></textarea><small>This text is committed before finalists are locked. It cannot be changed afterward.</small></label><button class="button button-primary" type="submit">Create round <span>→</span></button></div>
-      <aside class="technical-aside"><p class="eyebrow">Before you submit</p><h3>One clear universe</h3><p>MeritRound derives a deterministic round ID from the organizer and these fields. The frontend never chooses a winner.</p><details><summary>Technical details</summary><p>Contract method: <code>create_round(title, description, rubric)</code><br />Development chain: ${config.chainId}<br />Contract: ${escapeHtml(config.contractAddress ?? "not configured")}</p></details></aside>
+      <div class="form-main">
+        <div class="form-section-heading"><span class="section-number">01</span><div><h2>Round details</h2><p>Name the selection and give participants enough context to understand the brief.</p></div></div>
+        <label>Round title<input required name="title" maxlength="160" placeholder="e.g. Spring design challenge" /></label>
+        <label>Description<textarea required name="description" maxlength="4000" rows="4" placeholder="What is this round selecting, and who is it for?"></textarea></label>
+        <div class="form-section-heading form-section-heading-spaced"><span class="section-number">02</span><div><h2>Committed rubric</h2><p>This text becomes part of the locked evaluation universe. Write criteria a validator can apply to evidence.</p></div></div>
+        <label><span>Evaluation rubric</span><textarea required name="rubric" maxlength="12000" rows="9" placeholder="Describe what a strong submission demonstrates, how criteria relate, and what evidence should count."></textarea><small>Guidance is not authoritative. Only the submitted rubric enters contract state.</small></label>
+        <div class="form-submit-row"><div><span class="form-footnote">${networkLabel()} · Chain ${config.chainId}</span><span class="form-footnote">Organizer: ${escapeHtml(wallet.address ? shorten(wallet.address, 8) : "Connect wallet at submit")}</span></div><button class="button button-primary button-large" type="submit">Review and create <span>→</span></button></div>
+      </div>
+      <aside class="review-aside">
+        <div class="review-card"><p class="eyebrow">03 · Review</p><h3>Your committed brief</h3><div class="review-field"><span>Title</span><strong data-review="title">No title yet</strong></div><div class="review-field"><span>Description</span><strong data-review="description">No description yet</strong></div><div class="review-field"><span>Rubric</span><strong data-review="rubric">No rubric yet</strong></div></div>
+        <div class="boundary-note"><span class="note-symbol">↗</span><div><strong>One clear universe</strong><p>MeritRound derives a deterministic round ID from the organizer and these fields. The frontend never chooses a winner.</p></div></div>
+        <details class="technical-details"><summary>Technical details</summary><p>Contract method: <code>create_round(title, description, rubric)</code><br />Contract: <code>${escapeHtml(config.contractAddress ?? "not configured")}</code></p></details>
+      </aside>
     </form>
   `;
 }
 
 function detailActions(round: RoundView): string {
   const organizer = Boolean(wallet.address && wallet.address.toLowerCase() === round.organizer.toLowerCase());
-  const canSubmit = round.state === "OPEN";
   const actions: string[] = [];
-  if (round.state === "DRAFT" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="open_round" data-round-id="${round.round_id}">Open round <span>→</span></button>`);
-  if (canSubmit) actions.push(`<a class="button button-primary" data-link href="/app/rounds/${round.round_id}/submit">Add submission <span>+</span></a>`);
-  if (round.state === "OPEN" && organizer && round.submission_ids.length >= 2) actions.push(`<button class="button button-secondary" data-action="contract-write" data-method="lock_round" data-round-id="${round.round_id}">Lock finalists</button>`);
-  if (round.state === "LOCKED" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="resolve_round" data-round-id="${round.round_id}">Evaluate round <span>→</span></button>`);
+  if (round.state === "DRAFT" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="open_round" data-round-id="${escapeHtml(round.round_id)}">Open submissions <span>→</span></button>`);
+  if (round.state === "OPEN") {
+    actions.push(`<a class="button button-primary" data-link href="/app/rounds/${escapeHtml(round.round_id)}/submit">Add finalist <span>+</span></a>`);
+    if (organizer && round.submission_ids.length >= 2) actions.push(`<button class="button button-secondary" data-action="contract-write" data-method="lock_round" data-round-id="${escapeHtml(round.round_id)}">Lock finalists</button>`);
+  }
+  if (round.state === "LOCKED" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="resolve_round" data-round-id="${escapeHtml(round.round_id)}">Evaluate finalists <span>→</span></button>`);
   return actions.length ? `<div class="detail-actions">${actions.join("")}</div>` : "";
 }
 
-function submissionRow(submission: SubmissionView, finalist: boolean): string {
-  return `<article class="submission-row"><div class="submission-index">${finalist ? "F" : "S"}</div><div class="submission-copy"><strong>${escapeHtml(submission.title)}</strong><span>${escapeHtml(shorten(submission.submitter, 8))} · ${escapeHtml(shorten(submission.submission_id, 8))}</span></div><div class="submission-evidence"><span class="evidence-badge">SHA committed</span><a href="${escapeHtml(submission.evidence_url)}" target="_blank" rel="noreferrer">View evidence ↗</a></div></article>`;
+function stateBanner(round: RoundView): string {
+  const meta = STATE_META[round.state];
+  const icon = round.state === "FINALIZED" ? "✓" : round.state === "INCONCLUSIVE" ? "—" : round.state === "LOCKED" ? "⌁" : "○";
+  return `<section class="round-state-banner banner-${round.state.toLowerCase()}"><span class="banner-icon">${icon}</span><div><strong>${escapeHtml(meta.title)}</strong><p>${escapeHtml(meta.description)}</p></div>${round.state === "LOCKED" ? `<span class="banner-lock">Evaluation universe frozen</span>` : ""}</section>`;
+}
+
+function submissionCard(submission: SubmissionView, finalist: boolean, index: number): string {
+  return `<article class="submission-card"><div class="submission-card-top"><span class="submission-number">${String(index + 1).padStart(2, "0")}</span><span class="submission-role">${finalist ? "Finalist" : "Submission"}</span><span class="evidence-committed">✓ Evidence committed</span></div><h3>${escapeHtml(submission.title)}</h3><p class="submission-byline">Submitted by <code>${escapeHtml(shorten(submission.submitter, 8))}</code></p><div class="submission-card-footer"><a href="${escapeHtml(submission.evidence_url)}" target="_blank" rel="noreferrer">Open evidence ↗</a><details><summary>Technical details</summary><div class="evidence-details"><span>Submission ID</span><code>${escapeHtml(submission.submission_id)}</code><span>SHA-256 commitment</span><code>${escapeHtml(submission.expected_sha256)}</code></div></details></div></article>`;
+}
+
+function processPanel(round: RoundView, activity: TransactionRecord[]): string {
+  const latest = activity[0];
+  const evaluation = activity.find((record) => record.method === "resolve_round");
+  const activeEvaluation = evaluation && !evaluation.terminal;
+  const steps = [
+    ["Rubric committed", true],
+    ["Finalists locked", round.finalist_ids.length > 0],
+    [activeEvaluation ? TX_PHASE_META[evaluation.phase].label : "Validators evaluate", ["EVALUATING", "FINALIZED", "INCONCLUSIVE"].includes(round.state) || Boolean(evaluation)],
+    [round.state === "FINALIZED" || round.state === "INCONCLUSIVE" ? "Result read back" : "Result read back", round.state === "FINALIZED" || round.state === "INCONCLUSIVE"],
+  ] as Array<[string, boolean]>;
+  return `<div class="panel process-panel"><div class="section-heading"><div><p class="eyebrow">Decision path</p><h2>${activeEvaluation ? "Evaluation in progress" : "From brief to result"}</h2></div>${latest && !latest.terminal ? `<span class="live-label"><span class="pulse-dot"></span>Live</span>` : ""}</div><div class="process-list">${steps.map(([label, done]) => `<div class="process-step ${done ? "process-step-done" : ""}"><span class="process-marker">${done ? "✓" : ""}</span><span>${escapeHtml(label)}</span></div>`).join("")}</div>${evaluation?.error ? `<div class="inline-warning"><strong>Evaluation needs review</strong><p>${escapeHtml(evaluation.error)}</p><span>No winner was selected and the round was not blindly resubmitted.</span></div>` : ""}</div>`;
+}
+
+function resultPanel(result: ResultView, submissions: SubmissionView[], activity: TransactionRecord[]): string {
+  const winner = result.submission_id ? submissions.find((submission) => submission.submission_id === result.submission_id) : undefined;
+  const proof = [...activity].reverse().find((record) => record.method === "resolve_round" && record.terminal);
+  if (result.outcome === "WINNER") {
+    return `<section class="result-panel result-winner"><div class="result-eyebrow"><span class="result-star">✦</span><span>MeritRound decision</span></div><p class="result-label">Winner</p><h2>${escapeHtml(winner?.title ?? shorten(result.submission_id ?? "", 12))}</h2><p>Selected against the locked evaluation rubric. The canonical submission ID is the only winner value stored by the contract.</p><div class="winner-meta"><span>Submission ID</span><code>${escapeHtml(result.submission_id ?? "")}</code></div>${proof ? `<details class="proof-details"><summary>Transaction proof</summary><div><span>Transaction ID</span><code>${escapeHtml(proof.txId)}</code><span>Final execution</span><strong>${escapeHtml(proof.latestExecution ?? "Verified")}</strong></div></details>` : ""}</section>`;
+  }
+  return `<section class="result-panel result-inconclusive"><div class="result-eyebrow"><span class="result-symbol">—</span><span>MeritRound decision</span></div><p class="result-label">Inconclusive</p><h2>No winner was established.</h2><p>Validators could not establish a canonical winner from the committed rubric and evidence. The contract did not default to a finalist.</p>${proof ? `<details class="proof-details"><summary>Transaction proof</summary><div><span>Transaction ID</span><code>${escapeHtml(proof.txId)}</code><span>Execution state</span><strong>${escapeHtml(proof.latestStatus ?? "Final")}</strong></div></details>` : ""}</section>`;
+}
+
+function lockedEvaluationNotice(activity: TransactionRecord[]): string {
+  const failed = [...activity].reverse().find((record) => record.method === "resolve_round" && record.phase === "FAILED");
+  if (!failed) return "";
+  return `<section class="evaluation-failure panel"><div class="state-icon state-icon-warning">!</div><div><p class="eyebrow">Evaluation did not complete</p><h2>Finalist evidence could not be established.</h2><p>The transaction reached a terminal non-success state. No winner was selected, the round remains locked, and MeritRound did not blindly resubmit.</p><details><summary>Technical details</summary><pre>${escapeHtml(JSON.stringify({ transactionId: failed.txId, status: failed.latestStatus, result: failed.latestResult, error: failed.error }, null, 2))}</pre></details></div></section>`;
 }
 
 async function detailPage(roundId: string): Promise<string> {
@@ -319,14 +479,17 @@ async function detailPage(roundId: string): Promise<string> {
     const round = await client.getRound(roundId);
     const submissions = await Promise.all(round.submission_ids.map((id) => client.getSubmission(id)));
     const result: ResultView = round.state === "FINALIZED" || round.state === "INCONCLUSIVE" ? await client.getResult(roundId) : { exists: false };
+    const activity = transactionStore.list().filter((record) => record.roundId === roundId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     return `
-      <div class="detail-top"><a class="back-link" data-link href="/app/rounds">← All rounds</a>${statePill(round.state)}</div>
-      <section class="detail-hero"><div><p class="eyebrow">Round ${escapeHtml(shorten(round.round_id, 10))}</p><h1>${escapeHtml(round.title)}</h1><p class="detail-description">${escapeHtml(round.description)}</p></div>${detailActions(round)}</section>
-      <section class="detail-grid"><div class="detail-main"><div class="panel rubric-panel"><div class="section-heading"><div><p class="eyebrow">Committed rubric</p><h2>The judging boundary</h2></div><span class="lock-mark">⌁</span></div><p class="rubric-text">${escapeHtml(round.rubric)}</p><div class="digest-line"><span>Evaluation universe digest</span><code>${escapeHtml(shorten(round.evaluation_universe_digest || "Pending lock", 18))}</code></div></div><div class="panel"><div class="section-heading"><div><p class="eyebrow">Finalist set</p><h2>${submissions.length} submissions</h2></div>${round.state === "OPEN" ? `<span class="muted">Open for additions</span>` : `<span class="muted">Frozen at lock</span>`}</div>${submissions.length ? `<div class="submission-list">${submissions.map((submission) => submissionRow(submission, round.finalist_ids.includes(submission.submission_id))).join("")}</div>` : emptyState("No submissions yet", "Share the submission link once the round is open.")}</div></div><aside class="detail-aside"><div class="panel fact-panel"><p class="eyebrow">Round facts</p><dl><div><dt>Organizer</dt><dd>${escapeHtml(shorten(round.organizer, 8))}</dd></div><div><dt>State</dt><dd>${stateLabel(round.state)}</dd></div><div><dt>Finalists</dt><dd>${round.finalist_ids.length || "Not locked"}</dd></div></dl></div>${result.exists ? `<div class="panel result-panel ${result.outcome === "WINNER" ? "result-winner" : "result-inconclusive"}"><p class="eyebrow">Final result</p><strong>${escapeHtml(result.outcome === "WINNER" ? "Winner confirmed" : "Inconclusive")}</strong><p>${result.outcome === "WINNER" ? `Submission ${escapeHtml(shorten(result.submission_id ?? "", 8))} is the canonical result.` : "No winner was selected. The contract recorded an explicit inconclusive outcome."}</p></div>` : `<div class="panel process-panel"><p class="eyebrow">Decision path</p><div class="process-step process-step-done">Rubric committed</div><div class="process-step ${round.finalist_ids.length ? "process-step-done" : ""}">Finalists locked</div><div class="process-step ${(round.state === "EVALUATING" || round.state === "FINALIZED" || round.state === "INCONCLUSIVE") ? "process-step-done" : ""}">Validators evaluate</div><div class="process-step">Result read back</div></div>`}</aside></section>
-      ${activityStrip()}
+      <div class="detail-top"><a class="back-link" data-link href="/app/rounds">← All rounds</a>${statePill(round.state)}<span class="detail-top-id">${escapeHtml(shorten(round.round_id, 12))}</span></div>
+      <section class="detail-hero"><div><p class="eyebrow">Selection round</p><h1>${escapeHtml(round.title)}</h1><p class="detail-description">${escapeHtml(round.description)}</p><div class="organizer-line"><span>Organized by</span><code>${escapeHtml(shorten(round.organizer, 10))}</code></div></div>${detailActions(round)}</section>
+      ${stateBanner(round)}
+      ${round.state === "LOCKED" ? lockedEvaluationNotice(activity) : ""}
+      <section class="detail-grid"><div class="detail-main"><section class="panel rubric-panel"><div class="section-heading"><div><p class="eyebrow">Committed rubric</p><h2>The judging boundary</h2></div><span class="lock-mark">⌁</span></div><p class="rubric-text">${escapeHtml(round.rubric)}</p><div class="digest-line"><span>Evaluation universe digest</span><code>${escapeHtml(round.evaluation_universe_digest ? shorten(round.evaluation_universe_digest, 18) : "Pending lock")}</code></div></section><section class="finalists-section"><div class="section-heading"><div><p class="eyebrow">Finalist set</p><h2>${submissions.length} submission${submissions.length === 1 ? "" : "s"}</h2></div>${round.state === "OPEN" ? `<span class="muted">Open for additions</span>` : `<span class="muted">Frozen at lock</span>`}</div>${submissions.length ? `<div class="submission-list">${submissions.map((submission, index) => submissionCard(submission, round.finalist_ids.includes(submission.submission_id), index)).join("")}</div>` : emptyState("No finalists yet", "Open the round to begin accepting submissions.", "", "01")}</section></div><aside class="detail-aside"><div class="panel fact-panel"><div class="section-heading"><div><p class="eyebrow">Round facts</p><h2>At a glance</h2></div></div><dl><div><dt>Organizer</dt><dd>${escapeHtml(shorten(round.organizer, 8))}</dd></div><div><dt>State</dt><dd>${escapeHtml(stateLabel(round.state))}</dd></div><div><dt>Finalists</dt><dd>${round.finalist_ids.length || "Not locked"}</dd></div><div><dt>Evidence rule</dt><dd>HTTPS + SHA-256</dd></div></dl></div>${result.exists ? resultPanel(result, submissions, activity) : processPanel(round, activity)}<details class="panel technical-round-details"><summary>Technical details</summary><div><span>Round ID</span><code>${escapeHtml(round.round_id)}</code><span>Organizer</span><code>${escapeHtml(round.organizer)}</code><span>Evaluation digest</span><code>${escapeHtml(round.evaluation_universe_digest || "Not locked")}</code></div></details></aside></section>
+      ${activity.length ? `<section class="detail-activity"><div class="section-heading"><div><p class="eyebrow">Relevant activity</p><h2>Transaction history for this round</h2></div><a class="text-link" data-link href="/app/activity">View all →</a></div><div class="panel detail-activity-list">${activity.slice(0, 3).map((record) => transactionTimeline(record)).join("")}</div></section>` : ""}
     `;
   } catch (error) {
-    return pageHeader("Round", "Round unavailable", "The requested round could not be read from the configured contract.") + `<div class="error-state panel">${escapeHtml(error instanceof Error ? error.message : "Network read failed")}</div>`;
+    return pageHeader("Round", "Round unavailable", "The requested round could not be read from the configured contract.") + errorState("This round is unavailable", "Check the round ID and network connection.", error instanceof Error ? error.message : "Network read failed");
   }
 }
 
@@ -334,21 +497,29 @@ async function submitPage(roundId: string): Promise<string> {
   if (!client.isConfigured) return pageHeader("Submission", "Not configured", "The submission page needs a configured contract.") + configState();
   try {
     const round = await client.getRound(roundId);
-    if (round.state !== "OPEN") return pageHeader("Submission", "Submissions are closed", "This round is no longer accepting additions.") + `<div class="panel empty-state"><h2>${escapeHtml(round.title)}</h2><p>The contract is currently ${escapeHtml(stateLabel(round.state).toLowerCase())}.</p><a class="button button-secondary" data-link href="/app/rounds/${roundId}">Back to round</a></div>`;
+    if (round.state !== "OPEN") return pageHeader("Submission", "Submissions are closed", "This round is no longer accepting additions.") + `<div class="closed-round panel"><span class="state-icon">${round.state === "LOCKED" ? "⌁" : "—"}</span><div><p class="eyebrow">${escapeHtml(stateLabel(round.state))}</p><h2>${escapeHtml(round.title)}</h2><p>The contract is currently ${escapeHtml(stateLabel(round.state).toLowerCase())}. The finalist set cannot be changed.</p><a class="button button-secondary" data-link href="/app/rounds/${escapeHtml(roundId)}">Back to round</a></div></div>`;
     return `
-      ${pageHeader("Submit to round", round.title, "Commit an exact HTTPS evidence document. The contract and validators will verify it again.", `<a class="text-link" data-link href="/app/rounds/${roundId}">Back to round</a>`)}
-      <form class="form-layout panel" data-form="submit-submission" data-round-id="${roundId}"><div class="form-main"><label>Submission title<input required name="title" maxlength="160" placeholder="Name your work" /></label><label>Evidence URL<input required type="url" name="evidenceUrl" maxlength="512" pattern="https://.*" placeholder="https://…" /><small>HTTPS only. Use an immutable or content-addressed document where possible.</small></label><div class="hash-field"><label>Expected SHA-256<input required name="expectedSha256" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 lowercase hexadecimal characters" /></label><button class="button button-quiet" type="button" data-action="hash-evidence">Calculate from URL</button></div><div class="assistance-note"><span>i</span><p>Local calculation is convenience only. The contract re-fetches the URL and compares exact bytes before evaluation.</p></div><button class="button button-primary" type="submit">Register submission <span>→</span></button></div><aside class="technical-aside"><p class="eyebrow">Technical details</p><h3>Evidence stays evidence</h3><p>MeritRound does not store a frontend summary as authoritative input. Only the URL and exact SHA-256 commitment enter the locked evaluation universe.</p><code>register_submission(round_id, title, evidence_url, expected_sha256)</code></aside></form>
+      ${pageHeader("Add finalist", round.title, "Register a finalist with an exact HTTPS evidence commitment. Validators will fetch and verify the same bytes later.", `<a class="text-link" data-link href="/app/rounds/${escapeHtml(roundId)}">Back to round</a>`)}
+      <div class="submission-workflow"><div class="workflow-steps"><div class="workflow-step workflow-step-active"><span>01</span><strong>Evidence</strong><small>Reference exact bytes</small></div><div class="workflow-step"><span>02</span><strong>Commitment</strong><small>Bind the SHA-256</small></div><div class="workflow-step"><span>03</span><strong>Register</strong><small>Write shared state</small></div></div><form class="form-layout panel" data-form="submit-submission" data-round-id="${escapeHtml(roundId)}"><div class="form-main"><label>Finalist name or title<input required name="title" maxlength="160" placeholder="Name the work, team, or proposal" /></label><label>Evidence URL<input required type="url" name="evidenceUrl" maxlength="512" pattern="https://.*" placeholder="https://example.com/exact-evidence.json" /><small>HTTPS only. Prefer an immutable or content-addressed document.</small></label><div class="hash-field"><label>Expected SHA-256<input required name="expectedSha256" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 hexadecimal characters" /></label><button class="button button-quiet" type="button" data-action="hash-evidence">Calculate locally</button></div><div class="assistance-note"><span>i</span><p>Local calculation is convenience only. The contract re-fetches the URL and compares exact bytes before semantic evaluation. Browser CORS or source availability may prevent local calculation.</p></div><div class="submission-review"><p class="eyebrow">Review before registration</p><strong data-review="submission-title">Untitled finalist</strong><span data-review="submission-url">No evidence URL yet</span><code data-review="submission-hash">No commitment yet</code></div><button class="button button-primary button-large" type="submit">Register finalist <span>→</span></button></div><aside class="review-aside"><div class="review-card"><p class="eyebrow">Round boundary</p><h3>${escapeHtml(round.title)}</h3><div class="review-field"><span>Current state</span><strong>Open for submissions</strong></div><div class="review-field"><span>Round ID</span><strong>${escapeHtml(shorten(roundId, 10))}</strong></div><div class="review-field"><span>Evidence policy</span><strong>HTTPS + exact SHA-256</strong></div></div><div class="boundary-note"><span class="note-symbol">⌁</span><div><strong>Evidence stays evidence</strong><p>Do not submit a frontend-generated summary. Only the URL and exact commitment enter the evaluation universe.</p></div></div><details class="technical-details"><summary>Technical details</summary><p><code>register_submission(round_id, title, evidence_url, expected_sha256)</code></p></details></aside></form></div>
     `;
   } catch (error) {
-    return pageHeader("Submission", "Round unavailable", "The round could not be read.") + `<div class="error-state panel">${escapeHtml(error instanceof Error ? error.message : "Network read failed")}</div>`;
+    return pageHeader("Submission", "Round unavailable", "The round could not be read.") + errorState("Submission is unavailable", "The network did not return the round state.", error instanceof Error ? error.message : "Network read failed");
   }
+}
+
+function activitySteps(record: TransactionRecord): string {
+  const labels = record.method === "resolve_round"
+    ? ["Evaluation submitted", "Validators reviewing finalists", "Decision available", "Finalizing", "Result confirmed"]
+    : ["Transaction submitted", "Validators processing", "Decision available", "Finalizing", "State confirmed"];
+  const current = activityStepIndex(record.phase);
+  return `<div class="activity-steps">${labels.map((label, index) => `<div class="activity-step ${record.phase === "FAILED" && index === current ? "activity-step-failed" : index < current || record.phase === "RESOLVED" ? "activity-step-done" : index === current ? "activity-step-current" : ""}"><span>${index < current || record.phase === "RESOLVED" ? "✓" : String(index + 1).padStart(2, "0")}</span><strong>${label}</strong></div>`).join("")}</div>`;
 }
 
 function activityPage(): string {
   const records = transactionStore.list().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return `
-    ${pageHeader("Activity", "Your transaction trail", "MeritRound persists every returned transaction ID and reconciles the same ID after refresh.")}
-    ${records.length ? `<section class="activity-list">${records.map((record) => `<article class="activity-card panel"><div class="activity-card-heading"><div><p class="eyebrow">${escapeHtml(record.method)}</p><h2>${escapeHtml(record.roundId ? `Round ${shorten(record.roundId, 8)}` : "Deployment or registry action")}</h2></div><span class="phase-badge phase-${record.phase.toLowerCase()}">${escapeHtml(record.phase.replaceAll("_", " "))}</span></div><div class="activity-meta"><div><span>Transaction ID</span><code>${escapeHtml(record.txId)}</code></div><div><span>Submitted</span><strong>${escapeHtml(formatDate(record.submittedAt))}</strong></div><div><span>Latest status</span><strong>${escapeHtml(record.latestStatus ?? "Not read yet")}</strong></div><div><span>Execution</span><strong>${escapeHtml(record.latestExecution ?? "Not read yet")}</strong></div></div>${record.error ? `<p class="activity-error">${escapeHtml(record.error)}</p>` : ""}<details><summary>Technical details</summary><pre>${escapeHtml(JSON.stringify(record, null, 2))}</pre></details></article>`).join("")}</section>` : emptyState("No browser activity yet", "When you submit a state-changing action, its transaction ID and lifecycle will appear here.")}
+    ${pageHeader("Activity", "A transparent transaction trail", "Every returned transaction ID stays visible. Refreshes reconcile the same ID instead of creating a blind retry.")}
+    ${records.length ? `<section class="activity-list">${records.map((record) => `<article class="activity-card panel"><div class="activity-card-heading"><div><p class="eyebrow">${escapeHtml(record.method.replaceAll("_", " "))}</p><h2>${escapeHtml(record.roundId ? `Round ${shorten(record.roundId, 8)}` : "Registry action")}</h2><span class="activity-date">Submitted ${escapeHtml(formatDate(record.submittedAt))}</span></div><span class="phase-badge phase-${record.phase.toLowerCase()}">${escapeHtml(TX_PHASE_META[record.phase].short)}</span></div>${activitySteps(record)}<div class="activity-meta"><div><span>Transaction ID</span><code>${escapeHtml(record.txId)}</code></div><div><span>Protocol status</span><strong>${escapeHtml(record.latestStatus ?? "Not read yet")}</strong></div><div><span>Execution</span><strong>${escapeHtml(record.latestExecution ?? "Not read yet")}</strong></div><div><span>State readback</span><strong>${record.phase === "RESOLVED" ? "Expected state" : record.terminal ? "Not confirmed" : "Pending"}</strong></div></div>${record.error ? `<div class="activity-error"><strong>${record.phase === "TRACKING_INTERRUPTED" ? "Tracking interruption" : "Transaction not completed"}</strong><p>${escapeHtml(record.error)}</p>${record.phase === "TRACKING_INTERRUPTED" ? `<span>Your transaction remains recorded and recoverable.</span>` : ""}</div>` : ""}<details class="technical-details"><summary>Technical details</summary><div class="activity-details"><span>Network</span><code>${escapeHtml(record.network)} · ${record.chainId}</code><span>Contract</span><code>${escapeHtml(record.contractAddress)}</code><span>Arguments digest</span><code>${escapeHtml(record.argsDigest)}</code></div></details></article>`).join("")}</section>` : emptyState("No browser activity yet", "When you submit a state-changing action, its transaction ID and lifecycle will appear here.", `<a class="button button-primary" data-link href="/app/rounds">Browse rounds</a>`, "01")}
   `;
 }
 
@@ -365,14 +536,15 @@ async function pageForCurrentRoute(): Promise<{ content: string; active: string 
 
 async function render(): Promise<void> {
   const version = ++renderVersion;
-  root.innerHTML = shell(loadingState(), route().path.startsWith("/app") ? "app" : "");
+  const current = route();
+  root.innerHTML = shell(loadingState(), current.path.startsWith("/app") ? (current.path.includes("activity") ? "activity" : current.path.includes("rounds") ? "rounds" : "app") : "");
   try {
     const page = await pageForCurrentRoute();
     if (version !== renderVersion) return;
     root.innerHTML = shell(page.content, page.active);
   } catch (error) {
     if (version !== renderVersion) return;
-    root.innerHTML = shell(`<div class="error-state panel"><h2>Something interrupted this read</h2><p>${escapeHtml(error instanceof Error ? error.message : "Unknown application error")}</p></div>`);
+    root.innerHTML = shell(errorState("Something interrupted this read", "The application could not complete the current view.", error instanceof Error ? error.message : "Unknown application error"));
   }
 }
 
@@ -393,14 +565,12 @@ async function startTracking(record: TransactionRecord): Promise<void> {
   }
 }
 
-async function handleContractWrite(button: HTMLButtonElement): Promise<void> {
+async function handleContractWrite(method: string, roundId: string): Promise<void> {
   try {
     assertWalletAndConfig();
-    const roundId = button.dataset.roundId;
-    const method = button.dataset.method;
-    if (!roundId || !method || !wallet.address) throw new Error("Incomplete action context.");
+    if (!wallet.address) throw new Error("Incomplete wallet context.");
     const round = await client.getRound(roundId);
-    let args: unknown[] = [roundId];
+    const args: unknown[] = [roundId];
     let expectedState: TransactionRecord["expectedState"];
     if (method === "open_round") {
       if (round.state !== "DRAFT" || round.organizer.toLowerCase() !== wallet.address.toLowerCase()) throw new Error("The contract does not allow this round to open for this wallet.");
@@ -416,7 +586,7 @@ async function handleContractWrite(button: HTMLButtonElement): Promise<void> {
     }
     const operationId = await makeOperationId(config, wallet.address, method, args);
     const record = await client.sendWriteOnce({ operationId, method, args, expectedState, roundId });
-    setNotice(`Recorded ${shorten(record.txId, 10)}. MeritRound will track this same transaction.`, "success");
+    setNotice(`${method === "resolve_round" ? "Evaluation" : "Transaction"} recorded as ${shorten(record.txId, 10)}. MeritRound will track this same ID.`, "success");
     void startTracking(record);
   } catch (error) {
     setNotice(error instanceof Error ? error.message : "The action could not be submitted.", "error");
@@ -459,12 +629,24 @@ async function handleSubmitSubmission(form: HTMLFormElement): Promise<void> {
     const submissionId = await computeSubmissionId(roundId, wallet.address, title, evidenceUrl, expectedSha256);
     const operationId = await makeOperationId(config, wallet.address, "register_submission", args);
     const record = await client.sendWriteOnce({ operationId, method: "register_submission", args, expectedState: { kind: "submission-registered", roundId, submissionId }, roundId, submissionId });
-    setNotice(`Submission recorded as ${shorten(record.txId, 10)}.`, "success");
+    setNotice(`Finalist registration recorded as ${shorten(record.txId, 10)}.`, "success");
     void startTracking(record);
     navigate(`/app/rounds/${roundId}`);
   } catch (error) {
     setNotice(error instanceof Error ? error.message : "Submission failed.", "error");
   }
+}
+
+function updateSubmissionReview(): void {
+  const title = document.querySelector<HTMLInputElement>("input[name=title]");
+  const url = document.querySelector<HTMLInputElement>("input[name=evidenceUrl]");
+  const hash = document.querySelector<HTMLInputElement>("input[name=expectedSha256]");
+  const titleReview = document.querySelector<HTMLElement>("[data-review=submission-title]");
+  const urlReview = document.querySelector<HTMLElement>("[data-review=submission-url]");
+  const hashReview = document.querySelector<HTMLElement>("[data-review=submission-hash]");
+  if (titleReview) titleReview.textContent = title?.value.trim() || "Untitled finalist";
+  if (urlReview) urlReview.textContent = url?.value.trim() || "No evidence URL yet";
+  if (hashReview) hashReview.textContent = hash?.value.trim() || "No commitment yet";
 }
 
 async function calculateEvidenceHash(): Promise<void> {
@@ -473,16 +655,33 @@ async function calculateEvidenceHash(): Promise<void> {
   if (!urlInput || !hashInput || !urlInput.value) return setNotice("Enter an HTTPS evidence URL first.", "error");
   if (!urlInput.value.startsWith("https://")) return setNotice("Only HTTPS evidence URLs are accepted.", "error");
   try {
-    setNotice("Fetching exact bytes locally for a convenience hash…", "info");
+    setNotice("Fetching exact bytes locally for a convenience hash...", "info");
     const response = await fetch(urlInput.value, { credentials: "omit" });
     if (!response.ok) throw new Error(`Evidence fetch returned HTTP ${response.status}.`);
     const bytes = await response.arrayBuffer();
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     hashInput.value = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    updateSubmissionReview();
     setNotice("Hash calculated locally. The contract will verify the bytes again.", "success");
   } catch (error) {
     setNotice(error instanceof Error ? error.message : "The browser could not fetch those bytes.", "error");
   }
+}
+
+async function showEvaluationModal(roundId: string): Promise<void> {
+  try {
+    const round = await client.getRound(roundId);
+    const submissions = await Promise.all(round.finalist_ids.map((id) => client.getSubmission(id)));
+    const existing = document.querySelector("[data-modal]");
+    existing?.remove();
+    document.body.insertAdjacentHTML("beforeend", `<div class="modal-backdrop" data-modal role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="evaluation-modal-title"><button class="modal-close" data-action="close-modal" aria-label="Close evaluation confirmation">×</button><p class="eyebrow">Begin evaluation</p><h2 id="evaluation-modal-title">Evaluate the locked finalist set?</h2><p class="modal-lede">This action asks GenLayer validators to inspect the same committed rubric and evidence. The result can be a canonical winner or an explicit inconclusive outcome.</p><div class="modal-summary"><div><span>Round</span><strong>${escapeHtml(round.title)}</strong></div><div><span>Locked finalists</span><strong>${submissions.length}</strong></div><div><span>Evaluation digest</span><code>${escapeHtml(shorten(round.evaluation_universe_digest, 16))}</code></div></div><div class="modal-callout"><span>⌁</span><p>The rubric, finalist set, and evidence commitments are already frozen. If evidence cannot be retrieved or verified, no winner will be selected.</p></div><div class="modal-actions"><button class="button button-quiet" data-action="close-modal">Cancel</button><button class="button button-primary" data-action="confirm-evaluation" data-round-id="${escapeHtml(roundId)}">Begin evaluation <span>→</span></button></div></section></div>`);
+  } catch (error) {
+    setNotice(error instanceof Error ? error.message : "The locked round could not be read.", "error");
+  }
+}
+
+function closeModal(): void {
+  document.querySelector("[data-modal]")?.remove();
 }
 
 document.addEventListener("click", (event) => {
@@ -490,24 +689,41 @@ document.addEventListener("click", (event) => {
   const link = target.closest<HTMLAnchorElement>("a[data-link]");
   if (link) {
     event.preventDefault();
+    link.closest("details")?.removeAttribute("open");
     navigate(link.getAttribute("href") ?? "/");
     return;
   }
   const action = target.closest<HTMLElement>("[data-action]");
   if (!action) return;
   const name = action.dataset.action;
-  if (name === "connect-wallet") {
+  if (name === "close-modal") {
+    closeModal();
+  } else if (name === "confirm-evaluation" && action.dataset.roundId) {
+    const roundId = action.dataset.roundId;
+    closeModal();
+    void handleContractWrite("resolve_round", roundId);
+  } else if (name === "connect-wallet") {
     void client.connectWallet().then((next) => { wallet = next; setNotice("Wallet connected.", "success"); }).catch((error) => {
-      if (error instanceof WalletError && error.code === "WRONG_NETWORK") {
-        wallet = { status: "wrong-network", address: client.walletAddress, chainId: undefined };
-      }
+      if (error instanceof WalletError && error.code === "WRONG_NETWORK") wallet = { status: "wrong-network", address: client.walletAddress, chainId: undefined };
       setNotice(error instanceof Error ? error.message : "Wallet connection failed.", "error");
     });
-  } else if (name === "contract-write" && action instanceof HTMLButtonElement) {
-    void handleContractWrite(action);
+  } else if (name === "switch-network") {
+    void client.switchToConfiguredNetwork().then(async () => { wallet = await client.getWalletState(); setNotice(`Connected to ${networkLabel()}.`, "success"); }).catch((error) => setNotice(error instanceof Error ? error.message : "Network switch failed.", "error"));
+  } else if (name === "contract-write" && action.dataset.method && action.dataset.roundId) {
+    if (action.dataset.method === "resolve_round") void showEvaluationModal(action.dataset.roundId);
+    else void handleContractWrite(action.dataset.method, action.dataset.roundId);
   } else if (name === "hash-evidence") {
     void calculateEvidenceHash();
   }
+});
+
+document.addEventListener("input", (event) => {
+  const target = event.target as HTMLInputElement | HTMLTextAreaElement;
+  if (target.form?.dataset.form === "create-round") {
+    const review = target.form.querySelector<HTMLElement>(`[data-review="${target.name}"]`);
+    if (review) review.textContent = target.value.trim() || `No ${target.name} yet`;
+  }
+  if (target.form?.dataset.form === "submit-submission") updateSubmissionReview();
 });
 
 document.addEventListener("submit", (event) => {
@@ -516,6 +732,10 @@ document.addEventListener("submit", (event) => {
   event.preventDefault();
   if (form.dataset.form === "create-round") void handleCreateRound(form);
   if (form.dataset.form === "submit-submission") void handleSubmitSubmission(form);
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeModal();
 });
 
 window.addEventListener("popstate", () => void render());

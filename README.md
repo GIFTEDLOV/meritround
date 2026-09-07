@@ -74,8 +74,9 @@ key is stored in this repository.
 
 MeritRound is the only product in this repository. Tokenomics, governance,
 reputation, subscriptions, chat, appeals, admin dashboards, payouts,
-Bradbury deployment, Vercel deployment, and visual design are intentionally
-outside Hour 2.
+Bradbury deployment, and Vercel deployment remain outside the current scope.
+The frontend now includes the Hour 3 premium product experience; it does not
+invent rounds, winners, metrics, or transaction history.
 
 ## Run the application
 

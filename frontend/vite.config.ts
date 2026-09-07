@@ -13,5 +13,16 @@ export default defineConfig({
   build: {
     outDir: fileURLToPath(new URL("dist/", import.meta.url)),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/genlayer-js") || id.includes("node_modules/viem")) {
+            return "genlayer-runtime";
+          }
+          if (id.includes("node_modules")) return "vendor";
+          return undefined;
+        },
+      },
+    },
   },
 });
