@@ -1,0 +1,116 @@
+{
+  "label": "STUDIONET DEVELOPMENT PROOF",
+  "network": {
+    "name": "Studionet",
+    "rpc": "https://studio.genlayer.com/api",
+    "chain_id": "61999",
+    "contract_address": "0x2d96cE244D5C6DBBC4FBe37f940eC95f017bAf62",
+    "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7"
+  },
+  "fixture_host": {
+    "provider": "Vercel",
+    "project": "meritround-hour4-evidence",
+    "deployment_id": "dpl_AvdDSGAhxcrkZiaLm6VzG9oz6VDD",
+    "deployment_url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app",
+    "immutable_deployment_url_used": true,
+    "public_without_authentication": true,
+    "local_remote_hash_parity": "PASS",
+    "repeated_fetch_hash_stable": "PASS"
+  },
+  "fixtures": {
+    "finalist_a": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-a.json",
+      "sha256": "2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794",
+      "length": 2049
+    },
+    "finalist_b": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-b.json",
+      "sha256": "201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb",
+      "length": 1261
+    }
+  },
+  "round": {
+    "round_id": "5c70604986b1ed94117d6abeb4a40a124ee2a191663eda6412f05013f737a382",
+    "title": "Reproducible Developer Tool Challenge",
+    "finalist_a_submission_id": "6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7",
+    "finalist_b_submission_id": "9531ccb20acd6d35cd4a37a076268070c16590af4558cfb8a06cda1cce10cce0",
+    "evaluation_universe_digest": "8426ba746d700d4e876d0afb5c65b790cb22e7c73d338394d6ebfdfc1b3e6445",
+    "result_digest": "05c439bb248996850b7819f0ef9abe204b4de8d2537c9de38f561ed65c0ac81e"
+  },
+  "transactions": {
+    "create_round": {
+      "tx_id": "0x6b43bbe474ff08e524fe55c9aba5daee817045b336305c14453c914cb593c48c",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "DRAFT"
+    },
+    "open_round": {
+      "tx_id": "0xd1ac3ba81877923eede08b8f95418188cc8059fafc321c7fead2f04566e9f378",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "OPEN"
+    },
+    "register_finalist_a": {
+      "tx_id": "0xf495ed1ff1b7844b58189a7c7a99bcb3f57a199d574a46cdeb4de12953d429c0",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "submission 6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7"
+    },
+    "register_finalist_b": {
+      "tx_id": "0xe213f787470da58913343df86f42e0d8121b18776205008963a0f8b33e60b727",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "submission 9531ccb20acd6d35cd4a37a076268070c16590af4558cfb8a06cda1cce10cce0"
+    },
+    "lock_round": {
+      "tx_id": "0x1bd766c01e6be413fb3c4416b5701575e2c9f83be90d0f35cd97fc84c378ea6e",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "LOCKED"
+    },
+    "resolve_round": {
+      "tx_id": "0x365cf29f931ae830db0f4933c76ef1a7f788268939df619e89386d432508f46e",
+      "final_status": "FINALIZED",
+      "execution": "SUCCESS",
+      "readback": "WINNER finalist A"
+    }
+  },
+  "resolve_consensus": {
+    "result_name": "MAJORITY_AGREE",
+    "leader_execution": "SUCCESS",
+    "canonical_decision": {
+      "outcome": "WINNER",
+      "submission_id": "6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7"
+    },
+    "validator_receipts": {
+      "agree": 3,
+      "idle_after_quorum": 2,
+      "disagreement": false,
+      "evidence_availability_failure": false,
+      "evidence_integrity_failure": false
+    }
+  },
+  "latest_final_readback": {
+    "result": {
+      "exists": true,
+      "outcome": "WINNER",
+      "submission_id": "6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7",
+      "round_id": "5c70604986b1ed94117d6abeb4a40a124ee2a191663eda6412f05013f737a382"
+    },
+    "round": {
+      "state": "FINALIZED",
+      "submission_ids": [
+        "6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7",
+        "9531ccb20acd6d35cd4a37a076268070c16590af4558cfb8a06cda1cce10cce0"
+      ]
+    },
+    "read_variant": "LATEST_FINAL"
+  },
+  "success_criteria": {
+    "winner_matches_expected_finalist_a": true,
+    "winner_belongs_to_locked_finalists": true,
+    "successful_semantic_proof": true,
+    "prior_evidence_availability_failure_preserved": true,
+    "bradbury_proof": false
+  }
+}

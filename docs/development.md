@@ -81,10 +81,32 @@ A real Studionet lifecycle was attempted against the deployed contract:
 6. Final readback remained `LOCKED`, with no winner and no result record.
 
 This proves the deterministic lifecycle and the evidence fail-closed boundary
-on Studionet. It does not claim a successful semantic winner resolution. A
-future integration fixture must serve exact immutable evidence bytes with
-matching SHA-256 commitments before a successful `FINALIZED` resolution can be
-claimed.
+on Studionet. That historical failure remains preserved and was not retried.
+
+## Hour 4 semantic success proof
+
+A separate new round completed the full semantic path using exact UTF-8 JSON
+fixtures hosted from the immutable Vercel deployment
+`dpl_AvdDSGAhxcrkZiaLm6VzG9oz6VDD`:
+
+- Finalist A: `finalist-a.json`, 2,049 bytes,
+  SHA-256 `2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794`
+- Finalist B: `finalist-b.json`, 1,261 bytes,
+  SHA-256 `201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb`
+- Round: `5c70604986b1ed94117d6abeb4a40a124ee2a191663eda6412f05013f737a382`
+- Finalist A submission: `6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7`
+- Finalist B submission: `9531ccb20acd6d35cd4a37a076268070c16590af4558cfb8a06cda1cce10cce0`
+
+The public URLs returned HTTP 200 with exact local-byte parity across three
+repeated fetches. `create_round`, `open_round`, both registrations,
+`lock_round`, and `resolve_round` each reached `FINALIZED` with successful
+execution. The resolve receipt reached `MAJORITY_AGREE` and its canonical
+decision was `WINNER` for finalist A. `LATEST_FINAL` readback returned the same
+winner and `get_round` returned `FINALIZED` with both locked finalists.
+
+The structured proof is recorded in
+[evidence/studionet/hour4-proof.json](../evidence/studionet/hour4-proof.json).
+This is Studionet development evidence only; it is not Bradbury proof.
 
 ## Frontend verification
 
