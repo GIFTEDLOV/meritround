@@ -1,0 +1,20 @@
+{
+  "project": "MeritRound",
+  "network": "studionet",
+  "chain_id": 61999,
+  "rpc": "https://studio.genlayer.com/api",
+  "contract_address": "0x2d96cE244D5C6DBBC4FBe37f940eC95f017bAf62",
+  "deployment_tx": "0xea2b892e2d6f39c45515d1423a3fb04e5286790cf923dee2b63308eb49ef07d2",
+  "status": "FINALIZED",
+  "execution": "SUCCESS",
+  "contract_info": {
+    "name": "MeritRound",
+    "version": "1",
+    "result_schema": "{outcome: WINNER|INCONCLUSIVE, submission_id: string}",
+    "min_finalists": 2,
+    "max_finalists": 16,
+    "max_evidence_bytes": 32768
+  },
+  "verified_at": "2026-09-07T12:35:46.589591Z",
+  "verification_note": "Studionet SDK 1.1.8 verification: status_name FINALIZED and leader receipt execution_result SUCCESS; contract_info readback matched MeritRound."
+}

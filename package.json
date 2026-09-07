@@ -3,13 +3,28 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck:frontend": "tsc --noEmit -p frontend/tsconfig.json"
+    "dev": "vite --config frontend/vite.config.ts",
+    "build": "vite build --config frontend/vite.config.ts",
+    "typecheck:frontend": "tsc --noEmit -p frontend/tsconfig.json",
+    "typecheck:deploy": "tsc --noEmit --target ES2022 --module ES2022 --moduleResolution bundler --strict --skipLibCheck deploy/deployScript.ts",
+    "test:frontend": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "genlayer-js": "1.1.8"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
-    "typescript": "^5.6.2"
+    "@types/node": "26.4.1",
+    "typescript": "^5.6.2",
+    "vite": "6.4.3",
+    "vitest": "3.2.7"
+  },
+  "overrides": {
+    "@eslint/plugin-kit": "0.3.4",
+    "@humanfs/node": "0.16.8",
+    "ajv": "6.15.0",
+    "brace-expansion": "1.1.18",
+    "flatted": "3.4.2",
+    "js-yaml": "4.3.1",
+    "minimatch": "3.1.5"
   }
 }
