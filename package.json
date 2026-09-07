@@ -1,0 +1,15 @@
+{
+  "name": "meritround",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck:frontend": "tsc --noEmit -p frontend/tsconfig.json"
+  },
+  "dependencies": {
+    "genlayer-js": "1.1.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.6.2"
+  }
+}
