@@ -102,6 +102,27 @@ describe("MeritRound transaction lifecycle", () => {
     expect(store.get("fixed-operation")?.txId).toBe(TX_ID);
   });
 
+  it("does not broadcast if pre-broadcast metadata preparation fails", async () => {
+    const store = new MemoryTransactionStore();
+    const client = new MeritRoundClient(config, store);
+    const writeContract = vi.fn().mockResolvedValue(TX_ID);
+    attachWriteClient(client, writeContract);
+    vi.stubGlobal("crypto", undefined);
+
+    await expect(
+      client.sendWriteOnce({
+        operationId: "digest-failure",
+        method: "open_round",
+        args: [ROUND_ID],
+        expectedState: { kind: "round-state", roundId: ROUND_ID, state: "OPEN" },
+        roundId: ROUND_ID,
+      }),
+    ).rejects.toThrow("SHA-256 is unavailable");
+
+    expect(writeContract).not.toHaveBeenCalled();
+    expect(store.list()).toEqual([]);
+  });
+
   it("does not write when the contract is unconfigured", async () => {
     const client = new MeritRoundClient({ ...config, contractAddress: undefined }, new MemoryTransactionStore());
     await expect(client.getRound(ROUND_ID)).rejects.toThrow("MERITROUND_NOT_CONFIGURED");

@@ -65,6 +65,27 @@ fee profile or add arbitrary magic constants. Development writes use the
 current SDK write path with zero value; fee profiling remains an explicit
 follow-up before production deployment.
 
+## Release-freeze Bradbury gate
+
+The frozen contract source SHA-256 is
+`14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7`.
+`deploy/deployScript.ts` reads `contracts/meritround.py` directly into a
+`Uint8Array`, so the deployable source bytes are byte-identical to that source
+hash; no generated deployable artifact is used.
+
+The read-only Bradbury gate is
+[`scripts/bradbury_preflight.ps1`](../scripts/bradbury_preflight.ps1). It checks
+RPC health, chain identity, deployer address and balance, latest/pending nonce,
+pending-transaction risk, the frozen source hash, and fee-estimation
+availability. It never signs or broadcasts.
+
+The current stable stack is GenLayer CLI `0.39.1`, `genlayer-js` `1.1.8`, and
+`genlayer-test` `0.29.2`. Current GenLayer Consensus v0.6 guidance requires a
+coherent compatible release-candidate family and measured fee distribution for
+fee-charging deployments. The installed stable CLI has no `estimate-fees`
+command or fee-distribution submission path, so the Bradbury gate remains
+blocked until a compatible stack is deliberately selected and verified.
+
 ## Development lifecycle evidence
 
 A real Studionet lifecycle was attempted against the deployed contract:

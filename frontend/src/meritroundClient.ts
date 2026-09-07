@@ -576,6 +576,9 @@ export class MeritRoundClient {
     }
 
     const client = this.requireWritableClient();
+    // Compute optional metadata before broadcasting. Once a protocol ID exists,
+    // every subsequent failure must remain recoverable by that exact ID.
+    const argsDigest = await sha256Hex(stableSerialize(operation.args));
     const startedAt = new Date().toISOString();
     let txId: TransactionHash;
     try {
@@ -596,7 +599,7 @@ export class MeritRoundClient {
       chainId: this.config.chainId,
       contractAddress: this.contractAddress(),
       method: operation.method,
-      argsDigest: await sha256Hex(stableSerialize(operation.args)),
+      argsDigest,
       ...(operation.roundId ? { roundId: operation.roundId } : {}),
       ...(operation.submissionId ? { submissionId: operation.submissionId } : {}),
       expectedState: operation.expectedState,
