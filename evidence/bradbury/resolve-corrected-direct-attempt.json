@@ -1,0 +1,25 @@
+{
+  "method": "resolve_round",
+  "outer_evm_to": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+  "recipient": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "value": "0x0",
+  "num_initial_validators": 5,
+  "max_rotations": 3,
+  "valid_until": 1788874633,
+  "calldata_bytes": 356,
+  "calldata_keccak": "0x7137daf74e06fe3830b890880bbd68dd3cffce2cba51df2f4e487ca897846be2",
+  "nonce": "0x147",
+  "pending_nonce": "0x147",
+  "gas_price": "0x77359a4",
+  "explicit_gas_limit": 1872918,
+  "evm_submission_hash": "0xa9dba90daeddecc523418889af1d4e14c2f083d9526b9940c540fc19d105a454",
+  "evm_receipt": {
+    "status": "0x1",
+    "gas_used": "0xd84ea",
+    "effective_gas_price": "0x77359a4",
+    "block_number": "0x141ec07"
+  },
+  "genlayer_tx_ids": [
+    "0xc5a0dafe2cc76a1968f81c7e2c1ddeb339bd51f145f17554579c1b3976bcd6ec"
+  ]
+}

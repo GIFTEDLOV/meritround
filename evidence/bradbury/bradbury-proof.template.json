@@ -1,0 +1,101 @@
+{
+  "artifact_type": "bradbury-proof-template",
+  "status": "NOT_YET_PROVEN",
+  "network": "testnet-bradbury",
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "chain_id": 4221,
+  "toolchain": {
+    "cli": "0.39.1",
+    "genlayer_js": "1.1.8",
+    "genlayer_py": "0.16.3",
+    "gltest": "0.29.2"
+  },
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7",
+  "deployment": {
+    "genlayer_tx_id": "0x5ad403f1b9818fd22a18da6cc92db5400578df88b12c48bc55a5c199dbc32b3f",
+    "finalization_evm_tx": null,
+    "status": "FINALIZED",
+    "execution": "FINISHED_WITH_RETURN",
+    "consensus": "AGREE",
+    "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+  },
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "contract_info": {
+    "name": "MeritRound",
+    "version": "1",
+    "verified": true
+  },
+  "round_id": "1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7",
+  "round_state": "OPEN",
+  "finalists": {
+    "a": "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+    "b": "3aac0e3c7ff76fa9189f70815483d96dc3a5b8e434ca49d613e4800d786975e8"
+  },
+  "evidence": {
+    "a": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-a.json",
+      "sha256": "2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794",
+      "length": 2049
+    },
+    "b": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-b.json",
+      "sha256": "201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb",
+      "length": 1261
+    }
+  },
+  "completed_transactions": {
+    "create_round": {
+      "genlayer_tx_id": "0x30f2d0cd82c0fdaaeac5de74b1d8ca9f1ca7fe04a95b4be5600351b2d72dcbd7",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "open_round": {
+      "genlayer_tx_id": "0xcd8a2b19123f5cf2f9f777d9b38b0905d820ab4658a3cda4942702e3d0097e6c",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "register_finalist_a": {
+      "genlayer_tx_id": "0x3706c33081f0b5bb3694eb699bd7937e7aa935eadafc667a32d17dcf1b0a52ab",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "register_finalist_b": {
+      "genlayer_tx_id": "0xd9e841a1271d2abd67b7919f8614e31fe90c65f3832ca775313299b25aa57c72",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    }
+  },
+  "unfinished_transactions": {
+    "lock_round": {
+      "genlayer_tx_id": null,
+      "finalization_evm_tx": null,
+      "status": "NOT_YET_PROVEN",
+      "execution": "NOT_YET_PROVEN",
+      "consensus": "NOT_YET_PROVEN",
+      "validator_receipts": null
+    },
+    "resolve_round": {
+      "genlayer_tx_id": null,
+      "finalization_evm_tx": null,
+      "status": "NOT_YET_PROVEN",
+      "execution": "NOT_YET_PROVEN",
+      "consensus": "NOT_YET_PROVEN",
+      "validator_receipts": null
+    }
+  },
+  "final_result": "NOT_YET_PROVEN",
+  "final_state": "NOT_YET_PROVEN",
+  "capacity_rejection_history": {
+    "known_rejections": 8,
+    "broadcasted": false,
+    "error": "-32005 transaction gas rate limit exceeded: node is at capacity"
+  }
+}

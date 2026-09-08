@@ -1,0 +1,89 @@
+{
+  "artifact_type": "offline-mutation-verification",
+  "historical_scope_source": "tools/__pycache__/hour5_mutation_review.cpython-314.pyc",
+  "runner": "scripts/mutation_runner.py",
+  "runner_properties": {
+    "temporary_copies_only": true,
+    "canonical_source_modified": false,
+    "network_dependency": false,
+    "tooling_errors_count_as_kills": false
+  },
+  "tested": 9,
+  "killed": 9,
+  "survived": 0,
+  "errors": 0,
+  "results": [
+    {
+      "mutation_id": "organizer-check-removed",
+      "target_file_or_behavior": "contracts/meritround.py::_require_organizer",
+      "mutation_description": "Remove the organizer identity check.",
+      "expected_test_failure": "BUSINESS_UNAUTHORIZED_ORGANIZER must remain enforced.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_unauthorized_organizer_action"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "locked-state-check-removed",
+      "target_file_or_behavior": "contracts/meritround.py::register_submission",
+      "mutation_description": "Remove the OPEN-state requirement for submissions.",
+      "expected_test_failure": "Submission and open-state mutation after lock must remain rejected.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_mutation_after_lock_rejected"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "sha-equality-bypassed",
+      "target_file_or_behavior": "contracts/meritround.py::_validate_evidence_document",
+      "mutation_description": "Bypass the committed SHA-256 equality check.",
+      "expected_test_failure": "Tampered evidence must remain rejected with EVIDENCE_SHA_MISMATCH.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_sha_mismatch_fails_closed"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "winner-membership-check-removed",
+      "target_file_or_behavior": "contracts/meritround.py::_validate_model_result",
+      "mutation_description": "Remove the requirement that a WINNER is a locked finalist.",
+      "expected_test_failure": "A non-finalist winner must remain rejected.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_winner_id_not_in_finalist_set_fails_closed"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "malformed-result-keys-accepted",
+      "target_file_or_behavior": "contracts/meritround.py::_validate_model_result",
+      "mutation_description": "Allow malformed or extra result keys.",
+      "expected_test_failure": "Only the canonical outcome/submission_id schema must be accepted.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_malformed_or_invalid_model_result_fails_closed"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "inconclusive-winner-allowed",
+      "target_file_or_behavior": "contracts/meritround.py::_validate_model_result",
+      "mutation_description": "Allow INCONCLUSIVE results to contain a winner submission ID.",
+      "expected_test_failure": "INCONCLUSIVE must not contain a winner.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_inconclusive_cannot_contain_winner"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "terminal-overwrite-permitted",
+      "target_file_or_behavior": "contracts/meritround.py::resolve_round precondition and terminal result guard",
+      "mutation_description": "Remove both terminal/pre-lock resolve protection and terminal result immutability protection.",
+      "expected_test_failure": "Terminal and pre-lock state invariants must remain enforced.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_terminal_state_mutation_rejected"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "duplicate-overwrite-permitted",
+      "target_file_or_behavior": "contracts/meritround.py::register_submission",
+      "mutation_description": "Remove duplicate submission protection.",
+      "expected_test_failure": "Duplicate submission IDs must remain rejected.",
+      "tests_that_should_kill_it": ["tests/direct/test_meritround_direct.py::test_duplicate_submission_rejected"],
+      "status": "KILLED"
+    },
+    {
+      "mutation_id": "unavailable-evidence-bypassed-to-model",
+      "target_file_or_behavior": "contracts/meritround.py::_fetch_evidence",
+      "mutation_description": "Replace evidence fetching and availability validation with unverified text.",
+      "expected_test_failure": "Unavailable evidence must fail closed before semantic resolution.",
+      "tests_that_should_kill_it": ["tests/direct/test_mutation_availability.py::test_unavailable_evidence_cannot_become_winner (reconstructed by the runner because the historical source was temporary)"],
+      "status": "KILLED"
+    }
+  ]
+}

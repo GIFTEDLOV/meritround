@@ -1,0 +1,205 @@
+{
+  "label": "BRADBURY PRODUCTION-LIKE TESTNET PROOF IN PROGRESS",
+  "network": "testnet-bradbury",
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "chain_id": 4221,
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7",
+  "fixtures": {
+    "a": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-a.json",
+      "sha256": "2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794",
+      "length": 2049
+    },
+    "b": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-b.json",
+      "sha256": "201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb",
+      "length": 1261
+    }
+  },
+  "round_input": {
+    "title": "Reproducible Developer Tool Challenge",
+    "description": "A controlled MeritRound proof of exact committed finalist evidence.",
+    "rubric": "Select the finalist that most completely satisfies all mandatory requirements: 1. functioning implementation; 2. automated tests; 3. reproducible usage instructions; 4. documented known limitations; 5. concrete implementation evidence rather than only a proposal. If exactly one finalist clearly satisfies substantially more requirements, select that finalist. If the evidence does not establish a clear best finalist, return INCONCLUSIVE."
+  },
+  "round_id": "1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7",
+  "writes": {
+    "create_round": {
+      "tx_id": "0x30f2d0cd82c0fdaaeac5de74b1d8ca9f1ca7fe04a95b4be5600351b2d72dcbd7",
+      "broadcast_once": true,
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+      "readback_state": "DRAFT"
+    },
+    "open_round": {
+      "tx_id": "0xcd8a2b19123f5cf2f9f777d9b38b0905d820ab4658a3cda4942702e3d0097e6c",
+      "broadcast_once": true,
+      "status_history": ["ACCEPTED", "FINALIZED"],
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+      "readback_state": "OPEN"
+    },
+    "register_finalist_a": {
+      "genlayer_tx_id": "0x3706c33081f0b5bb3694eb699bd7937e7aa935eadafc667a32d17dcf1b0a52ab",
+      "evm_submission_hash": "0x3bd8206530fac320f9792c864bf6b7431c114c7cbed952bfabc0342b332cfac5",
+      "broadcast_once": true,
+      "failed_cli_evm_submission_without_genlayer_id": "0x461798803e52315916ec1939724b673d8edf3ad83dd2a4c215099401d69f72ae",
+      "status_history": ["ACCEPTED", "FINALIZED"],
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+      "submission_id": "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+      "finalization_evm_tx": null,
+      "readback_state": "OPEN_ONE_SUBMISSION"
+    },
+    "register_finalist_b": {
+      "genlayer_tx_id": "0xd9e841a1271d2abd67b7919f8614e31fe90c65f3832ca775313299b25aa57c72",
+      "evm_submission_hash": "0xa7dbf61350e7c916d1b75ac3824d93add0f467eac3ba30eb9152aeb80ce837b6",
+      "broadcast_once": true,
+      "status_history": ["PENDING", "PROPOSING", "COMMITTING", "REVEALING", "ACCEPTED"],
+      "status": "ACCEPTED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+      "finalization_eligible_at_protocol_timestamp": "1788859006",
+      "status_history_final": ["READY_TO_FINALIZE", "FINALIZED"],
+      "finalization_evm_tx": null,
+      "failed_finalize_race_evm_tx": "0xdb7b17cd0115bc778bf2ecceb15edef3fcc4d976615aacfc8d4a697f7994a177"
+    },
+    "lock_round": {
+      "broadcasted": false,
+      "genlayer_tx_id": null,
+      "evm_submission_hash": "0xf8de961d2be61bb29a0c5aa123449b69d9d23ae392499fc43576fb3afe08a45a",
+      "attempt_count": 5,
+      "gas_limits_tried": [2000000, 2000000, 1000000, 1000000, 891997],
+      "rejection": "-32005 transaction gas rate limit exceeded: node is at capacity",
+      "recovery_session_capacity_retries": 3,
+      "recovery_session_retry_after_ms": [1208, 191, 2401],
+      "recovery_session_broadcasted": [false, false, false],
+      "nonce_change_provenance": {
+        "events": [
+          {
+            "from": 319,
+            "to": 320,
+            "unrelated_evm_tx": "0x536dc840985ee3c422d4fe36ae25b1c4ddab28779fe950f48f61598ee6aa351a",
+            "unrelated_protocol_tx_id": "0x760c1e941b6b5c46dbdb53eeb3a2f4f339b6cc715009bf7d98bcead7b2c7ecb6",
+            "reason": "finalizeTransaction call to the consensus contract; not a MeritRound lock submission"
+          },
+          {
+            "from": 320,
+            "to": 321,
+            "unrelated_evm_tx": "0x52bbd93c103c134289c5b05c0f4b085c56a157d6aac87331385902758b6bc4b5",
+            "reason": "addTransaction call for a different protocol recipient and payload; not a MeritRound lock submission"
+          }
+        ]
+      },
+      "readback_state": "OPEN",
+      "readback_submission_ids": [
+        "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+        "3aac0e3c7ff76fa9189f70815483d96dc3a5b8e434ca49d613e4800d786975e8"
+      ],
+      "direct_outer_attempt": {
+        "attempted": true,
+        "rpc": "https://rpc.testnet-chain.genlayer.com",
+        "consensus_main": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+        "calldata_keccak": "0x7cc6cf5628249768216d5339b2b9dda4ee36211fba3a1feb41499b6e0da152b2",
+        "calldata_bytes": 324,
+        "valid_until": 1788869982,
+        "direct_estimate": {
+          "method": "eth_estimateGas",
+          "error_code": 3,
+          "error_message": "execution reverted",
+          "error_data": "0xc1ba7c94"
+        },
+        "same_calldata_eth_call": "0x",
+        "explicit_gas_limit": 2500000,
+        "gas_limit_rationale": "2x the maximum successful CREATE/OPEN/REGISTER outer gas (2,452,476), rounded up with additional margin; below the 100,000,000 block gas limit and affordable.",
+        "evm_submission_hash": "0xf8de961d2be61bb29a0c5aa123449b69d9d23ae392499fc43576fb3afe08a45a",
+        "nonce": 321,
+        "post_attempt_latest_nonce": 322,
+        "post_attempt_pending_nonce": 322,
+        "post_attempt_nonce_change_reason": "The reverted outer EVM transaction consumed nonce 321; no unknown pending transaction remains.",
+        "receipt_status": "0x0",
+        "gas_used": 84618,
+        "effective_gas_price": "0x77359a4",
+        "logs": 0,
+        "genlayer_tx_id": null,
+        "revert_data": "0xc1ba7c94",
+        "new_transaction_event_count": 0,
+        "replacement_sent": false
+      },
+      "corrected_direct_outer_attempt": {
+        "attempted": true,
+        "rpc": "https://rpc.testnet-chain.genlayer.com",
+        "consensus_main": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+        "genlayer_recipient": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+        "function_selector": "0xe71d5196",
+        "calldata_keccak": "0x454eff99b6ce0389cc45db774a75b6ff7e1ca280d1296e3ffc8c32cc313ca694",
+        "calldata_bytes": 324,
+        "inner_txdata_keccak": "0xf772a84e3a16c3696855d351f214ca2f7ae6296794965f91627c4d718042c065",
+        "direct_estimate": 912894,
+        "explicit_gas_limit": 1825788,
+        "nonce": 324,
+        "evm_submission_hash": "0x193515bfefc2daaff20c1b2d284e52da29c626b543dd6c214a569622b2425788",
+        "receipt_status": "0x1",
+        "gas_used": 863500,
+        "new_transaction_event_count": 1,
+        "genlayer_tx_id": "0x323e8f9f3f7c72fd17113c70a3870cae936b17123e51ceb9364b2985ec56590d",
+        "status": "FINALIZED",
+        "execution": "FINISHED_WITH_RETURN",
+        "consensus": "AGREE",
+        "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+        "readback_state": "LOCKED"
+      }
+    },
+    "resolve_round": {
+      "genlayer_tx_id": "0xc5a0dafe2cc76a1968f81c7e2c1ddeb339bd51f145f17554579c1b3976bcd6ec",
+      "evm_submission_hash": "0xa9dba90daeddecc523418889af1d4e14c2f083d9526b9940c540fc19d105a454",
+      "status_history": ["PROPOSING", "COMMITTING", "ACCEPTED", "FINALIZED"],
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+      "receipt_status": "0x1",
+      "gas_used": 885994,
+      "direct_estimate": 936459,
+      "explicit_gas_limit": 1872918,
+      "new_transaction_event_count": 1,
+      "readback_state": "FINALIZED",
+      "final_result": "WINNER",
+      "winner_submission_id": "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9"
+    }
+  },
+  "mutation_gap_review": {
+    "status": "FRESH_LOCAL_RUN_9_OF_9_KILLED",
+    "artifact": "tools/__pycache__/hour5_mutation_review.cpython-314.pyc",
+    "reproducible_runner": "scripts/mutation_runner.py",
+    "source_and_output_note": "The embedded temporary-review docstring says the source is deleted after the run; no runnable 9-case harness or report is present in tracked history.",
+    "prior_runner_gate": "Printed killed=N/9 and exited success only when all nine mutation results were killed.",
+    "exact_mutations": [
+      {"name": "organizer-check-removed", "test": "tests/direct/test_meritround_direct.py::test_unauthorized_organizer_action"},
+      {"name": "locked-state-check-removed", "test": "tests/direct/test_meritround_direct.py::test_mutation_after_lock_rejected"},
+      {"name": "sha-equality-bypassed", "test": "tests/direct/test_meritround_direct.py::test_sha_mismatch_fails_closed"},
+      {"name": "winner-membership-check-removed", "test": "tests/direct/test_meritround_direct.py::test_winner_id_not_in_finalist_set_fails_closed"},
+      {"name": "malformed-result-keys-accepted", "test": "tests/direct/test_meritround_direct.py::test_malformed_or_invalid_model_result_fails_closed"},
+      {"name": "inconclusive-winner-allowed", "test": "tests/direct/test_meritround_direct.py::test_inconclusive_cannot_contain_winner"},
+      {"name": "terminal-overwrite-permitted", "test": "tests/direct/test_meritround_direct.py::test_terminal_state_mutation_rejected"},
+      {"name": "duplicate-overwrite-permitted", "test": "tests/direct/test_meritround_direct.py::test_duplicate_submission_rejected"},
+      {"name": "unavailable-evidence-bypassed-to-model", "test": "tests/direct/test_mutation_availability.py::test_unavailable_evidence_cannot_become_winner"}
+    ],
+    "fresh_score_claimed": true,
+    "fresh_run": {
+      "tested": 9,
+      "killed": 9,
+      "survived": 0,
+      "errors": 0,
+      "network_dependency": false,
+      "canonical_source_modified": false
+    }
+  }
+}

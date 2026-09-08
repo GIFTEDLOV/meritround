@@ -1,0 +1,89 @@
+{
+  "artifact_type": "bradbury-direct-lock-attempt",
+  "status": "EVM_REVERTED_NO_GENLAYER_TX",
+  "genlayer_rpc": "https://rpc-bradbury.genlayer.com",
+  "direct_chain_rpc": "https://rpc.testnet-chain.genlayer.com",
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "round_id": "1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7",
+  "round_state_pre_broadcast": "OPEN",
+  "finalist_ids_pre_broadcast": [
+    "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+    "3aac0e3c7ff76fa9189f70815483d96dc3a5b8e434ca49d613e4800d786975e8"
+  ],
+  "result_exists_pre_broadcast": false,
+  "previous_failure_rpc_method": "NOT_EXACTLY_PRESERVED",
+  "previous_failure_method_note": "The interrupted CLI attempts preserved the -32005 text but not the JSON-RPC method. Local stable genlayer-js 1.1.8 path instrumentation confirms eth_estimateGas is the pre-send estimation call; the historical request method itself is not claimed here.",
+  "successful_outer_receipts": {
+    "create": {
+      "evm_submission_hash": "0xd93452f026a91b6319010e234f264689db0c4ae056685e3de10163b8b01662f4",
+      "gas_used": 1226238,
+      "status": "0x1"
+    },
+    "open": {
+      "evm_submission_hash": "0x65f226659bf0efdb87d6eb338c03ac5db0ce334512c994a715b99183f6f3ef4c",
+      "gas_used": 843552,
+      "status": "0x1"
+    },
+    "register_a": {
+      "evm_submission_hash": "0x3bd8206530fac320f9792c864bf6b7431c114c7cbed952bfabc0342b332cfac5",
+      "gas_used": 957858,
+      "status": "0x1"
+    },
+    "register_b": {
+      "evm_submission_hash": "0xa7dbf61350e7c916d1b75ac3824d93add0f467eac3ba30eb9152aeb80ce837b6",
+      "gas_used": 957858,
+      "status": "0x1"
+    },
+    "max_successful_gas_used": 1226238
+  },
+  "outer_call": {
+    "consensus_main": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+    "genlayer_recipient": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+    "method": "lock_round",
+    "calldata_keccak": "0x7cc6cf5628249768216d5339b2b9dda4ee36211fba3a1feb41499b6e0da152b2",
+    "calldata_bytes": 324,
+    "valid_until": 1788869982,
+    "value": "0x0",
+    "num_initial_validators": 5,
+    "max_rotations": 3
+  },
+  "direct_chain_estimate": {
+    "method": "eth_estimateGas",
+    "result": null,
+    "error_code": 3,
+    "error_message": "execution reverted",
+    "error_data": "0xc1ba7c94",
+    "same_calldata_eth_call_result": "0x"
+  },
+  "explicit_gas_limit": 2500000,
+  "gas_limit_rationale": "The direct estimator reverted despite the same calldata succeeding via eth_call. The selected limit is 2,500,000, greater than 2x the observed maximum successful lifecycle gas of 1,226,238 (2,452,476), below the 100,000,000 block gas limit, and affordable at the observed gas price.",
+  "pre_broadcast_nonce": {
+    "genlayer_latest": "0x141",
+    "genlayer_pending": "0x141",
+    "direct_latest": "0x141",
+    "direct_pending": "0x141",
+    "unknown_pending_tx": false
+  },
+  "submission": {
+    "evm_submission_hash": "0xf8de961d2be61bb29a0c5aa123449b69d9d23ae392499fc43576fb3afe08a45a",
+    "nonce": 321,
+    "gas_limit": 2500000,
+    "gas_price": "0x77359a4",
+    "receipt_status": "0x0",
+    "gas_used": 84618,
+    "effective_gas_price": "0x77359a4",
+    "new_transaction_event_count": 0,
+    "genlayer_tx_id": null,
+    "revert_data": "0xc1ba7c94",
+    "duplicate_submission": false
+  },
+  "post_attempt_nonce": {
+    "genlayer_latest": "0x142",
+    "genlayer_pending": "0x142",
+    "direct_latest": "0x142",
+    "direct_pending": "0x142",
+    "unknown_pending_tx": false,
+    "reason": "The reverted outer EVM transaction consumed nonce 321."
+  },
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7"
+}

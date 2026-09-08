@@ -1,0 +1,27 @@
+{
+  "network": "testnet-bradbury",
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "chain_id": 4221,
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7",
+  "deployment_tx": "0x5ad403f1b9818fd22a18da6cc92db5400578df88b12c48bc55a5c199dbc32b3f",
+  "status": "FINALIZED",
+  "accepted_status": "ACCEPTED",
+  "accepted_execution": "FINISHED_WITH_RETURN",
+  "accepted_consensus": "AGREE",
+  "accepted_validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+  "finalization_action": "PROTOCOL_AUTO_FINALIZED_AFTER_APPEAL_WINDOW",
+  "finalization_evm_tx": null,
+  "execution": "FINISHED_WITH_RETURN",
+  "consensus": "AGREE",
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "contract_info_verified": true,
+  "finalized_contract_info": {
+    "name": "MeritRound",
+    "version": "1",
+    "result_schema": "{outcome: WINNER|INCONCLUSIVE, submission_id: string}",
+    "min_finalists": 2,
+    "max_finalists": 16,
+    "max_evidence_bytes": 32768
+  },
+  "finality_required_before_writes": true
+}

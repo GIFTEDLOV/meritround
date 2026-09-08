@@ -1,0 +1,159 @@
+{
+  "artifact_type": "bradbury-proof",
+  "status": "VERIFIED",
+  "network": "testnet-bradbury",
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "direct_chain_rpc": "https://rpc.testnet-chain.genlayer.com",
+  "chain_id": 4221,
+  "toolchain": {
+    "cli": "0.39.1",
+    "genlayer_js": "1.1.8",
+    "genlayer_py": "0.16.3",
+    "gltest": "0.29.2"
+  },
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7",
+  "deployment": {
+    "genlayer_tx_id": "0x5ad403f1b9818fd22a18da6cc92db5400578df88b12c48bc55a5c199dbc32b3f",
+    "outer_evm_tx": "0x1fdc20caa08d3867c23843b78985752fffb922991a707651dd6ae6700aca1d72",
+    "status": "FINALIZED",
+    "execution": "FINISHED_WITH_RETURN",
+    "consensus": "AGREE",
+    "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+    "finalization_evm_tx": null
+  },
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "contract_info_readback": {
+    "name": "MeritRound",
+    "version": "1",
+    "verified": true,
+    "latest_final": true
+  },
+  "round_id": "1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7",
+  "finalists": {
+    "a": "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+    "b": "3aac0e3c7ff76fa9189f70815483d96dc3a5b8e434ca49d613e4800d786975e8"
+  },
+  "evidence": {
+    "a": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-a.json",
+      "sha256": "2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794",
+      "length": 2049,
+      "http_status": 200,
+      "stable_repeated_reads": 3
+    },
+    "b": {
+      "url": "https://meritround-hour4-evidence-o6pde5mub.vercel.app/finalist-b.json",
+      "sha256": "201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb",
+      "length": 1261,
+      "http_status": 200,
+      "stable_repeated_reads": 3
+    }
+  },
+  "completed_transactions": {
+    "create_round": {
+      "genlayer_tx_id": "0x30f2d0cd82c0fdaaeac5de74b1d8ca9f1ca7fe04a95b4be5600351b2d72dcbd7",
+      "outer_evm_tx": "0xd93452f026a91b6319010e234f264689db0c4ae056685e3de10163b8b01662f4",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "open_round": {
+      "genlayer_tx_id": "0xcd8a2b19123f5cf2f9f777d9b38b0905d820ab4658a3cda4942702e3d0097e6c",
+      "outer_evm_tx": "0x65f226659bf0efdb87d6eb338c03ac5db0ce334512c994a715b99183f6f3ef4c",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "register_finalist_a": {
+      "genlayer_tx_id": "0x3706c33081f0b5bb3694eb699bd7937e7aa935eadafc667a32d17dcf1b0a52ab",
+      "outer_evm_tx": "0x3bd8206530fac320f9792c864bf6b7431c114c7cbed952bfabc0342b332cfac5",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    },
+    "register_finalist_b": {
+      "genlayer_tx_id": "0xd9e841a1271d2abd67b7919f8614e31fe90c65f3832ca775313299b25aa57c72",
+      "outer_evm_tx": "0xa7dbf61350e7c916d1b75ac3824d93add0f467eac3ba30eb9152aeb80ce837b6",
+      "status": "FINALIZED",
+      "execution": "FINISHED_WITH_RETURN",
+      "consensus": "AGREE",
+      "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"]
+    }
+  },
+  "failed_attempt_provenance": {
+    "known_capacity_rejections_before_broadcast": 8,
+    "failed_outer_evm_tx": "0xf8de961d2be61bb29a0c5aa123449b69d9d23ae392499fc43576fb3afe08a45a",
+    "failed_outer_nonce": 321,
+    "failed_receipt_status": "0x0",
+    "failed_revert": "0xc1ba7c94",
+    "failed_revert_name": "NonGenVMContract()",
+    "failed_embedded_recipient": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+    "root_cause": "DIRECT_HELPER_RECIPIENT_BUG",
+    "inner_txdata_was_correct": true,
+    "provenance_files_preserved": [
+      "evidence/bradbury/lock-direct-attempt.json",
+      "evidence/bradbury/e2e-progress.json",
+      "evidence/bradbury/deployment-tx.pending.json"
+    ]
+  },
+  "corrected_submission_strategy": {
+    "outer_submission_rpc": "https://rpc.testnet-chain.genlayer.com",
+    "outer_to": "0x0112Bf6e83497965A5fdD6Dad1E447a6E004271D",
+    "embedded_recipient": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+    "function_selector": "0xe71d5196",
+    "sdk_semantic_parity": true,
+    "helper_file": "scripts/bradbury_direct_outer.py"
+  },
+  "lock_round": {
+    "genlayer_tx_id": "0x323e8f9f3f7c72fd17113c70a3870cae936b17123e51ceb9364b2985ec56590d",
+    "outer_evm_tx": "0x193515bfefc2daaff20c1b2d284e52da29c626b543dd6c214a569622b2425788",
+    "status_history": ["ACCEPTED", "FINALIZED"],
+    "status": "FINALIZED",
+    "execution": "FINISHED_WITH_RETURN",
+    "consensus": "AGREE",
+    "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+    "evm_receipt_status": "0x1",
+    "evm_gas_used": 863500,
+    "explicit_gas_limit": 1825788,
+    "direct_chain_estimate": 912894,
+    "calldata_bytes": 324,
+    "calldata_keccak": "0x454eff99b6ce0389cc45db774a75b6ff7e1ca280d1296e3ffc8c32cc313ca694",
+    "inner_txdata_keccak": "0xf772a84e3a16c3696855d351f214ca2f7ae6296794965f91627c4d718042c065",
+    "finalization_evm_tx": null,
+    "latest_final_state_readback": "LOCKED"
+  },
+  "resolve_round": {
+    "genlayer_tx_id": "0xc5a0dafe2cc76a1968f81c7e2c1ddeb339bd51f145f17554579c1b3976bcd6ec",
+    "outer_evm_tx": "0xa9dba90daeddecc523418889af1d4e14c2f083d9526b9940c540fc19d105a454",
+    "status_history": ["PROPOSING", "COMMITTING", "ACCEPTED", "FINALIZED"],
+    "status": "FINALIZED",
+    "execution": "FINISHED_WITH_RETURN",
+    "consensus": "AGREE",
+    "validator_receipts": ["AGREE", "AGREE", "AGREE", "AGREE", "AGREE"],
+    "evm_receipt_status": "0x1",
+    "evm_gas_used": 885994,
+    "explicit_gas_limit": 1872918,
+    "direct_chain_estimate": 936459,
+    "calldata_bytes": 356,
+    "calldata_keccak": "0x7137daf74e06fe3830b890880bbd68dd3cffce2cba51df2f4e487ca897846be2",
+    "inner_txdata_keccak": "0x90c0bafd5b4785272d9d06d16432f858393cec61c59bfffc0eba951c79d9ebf8",
+    "finalization_evm_tx": null
+  },
+  "final_readback": {
+    "round_state": "FINALIZED",
+    "submission_ids": [
+      "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+      "3aac0e3c7ff76fa9189f70815483d96dc3a5b8e434ca49d613e4800d786975e8"
+    ],
+    "result": {
+      "exists": true,
+      "outcome": "WINNER",
+      "submission_id": "f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9",
+      "result_digest": "29d3d8fddb3d4ba3a67e2bcf981451c5f80ee47d22600c204f88deaa46af3b4f"
+    },
+    "latest_final_match": true
+  }
+}
