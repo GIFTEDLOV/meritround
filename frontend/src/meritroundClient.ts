@@ -1,5 +1,5 @@
 import { createClient } from "genlayer-js";
-import { localnet, studionet } from "genlayer-js/chains";
+import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
 import {
   GenLayerClient,
   TransactionHash,
@@ -54,7 +54,7 @@ export interface Eip1193Provider {
   removeListener?(event: string, listener: (...args: unknown[]) => void): void;
 }
 
-export type MeritRoundNetwork = "localnet" | "studionet";
+export type MeritRoundNetwork = "localnet" | "studionet" | "bradbury";
 
 export interface MeritRoundConfig {
   network: MeritRoundNetwork;
@@ -66,6 +66,7 @@ export interface MeritRoundConfig {
 const DEFAULT_NETWORKS: Record<MeritRoundNetwork, Omit<MeritRoundConfig, "network">> = {
   localnet: { endpoint: "http://127.0.0.1:4000/api", chainId: 61127 },
   studionet: { endpoint: "https://studio.genlayer.com/api", chainId: 61999 },
+  bradbury: { endpoint: "https://rpc-bradbury.genlayer.com", chainId: 4221 },
 };
 
 function environment(): Record<string, string | undefined> {
@@ -79,7 +80,9 @@ export function loadMeritRoundConfig(): MeritRoundConfig {
   const env = environment();
   const network: MeritRoundNetwork = env.VITE_MERITROUND_NETWORK === "localnet"
     ? "localnet"
-    : "studionet";
+    : env.VITE_MERITROUND_NETWORK === "bradbury"
+      ? "bradbury"
+      : "studionet";
   const defaults = DEFAULT_NETWORKS[network];
   const rawAddress = env.VITE_MERITROUND_CONTRACT_ADDRESS?.trim();
   const contractAddress = rawAddress && /^0x[0-9a-fA-F]{40}$/.test(rawAddress)
@@ -250,7 +253,7 @@ function isTransactionRecord(value: unknown): value is TransactionRecord {
     typeof record.operationId === "string" &&
     typeof record.txId === "string" &&
     /^0x[0-9a-fA-F]+$/.test(record.txId) &&
-    (record.network === "localnet" || record.network === "studionet") &&
+    (record.network === "localnet" || record.network === "studionet" || record.network === "bradbury") &&
     typeof record.chainId === "number" &&
     typeof record.contractAddress === "string" &&
     typeof record.method === "string" &&
@@ -449,7 +452,9 @@ export class MeritRoundClient {
   }
 
   private chain() {
-    return this.config.network === "localnet" ? localnet : studionet;
+    if (this.config.network === "localnet") return localnet;
+    if (this.config.network === "bradbury") return testnetBradbury;
+    return studionet;
   }
 
   private buildClient(account?: Address, provider?: Eip1193Provider): GenLayerClient<any> {

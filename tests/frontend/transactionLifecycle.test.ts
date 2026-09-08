@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
 import {
+  loadMeritRoundConfig,
   MemoryTransactionStore,
   MeritRoundClient,
   PersistentTransactionStore,
@@ -78,9 +80,50 @@ const finalizedSuccess = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("MeritRound transaction lifecycle", () => {
+  it("selects the configured localnet, studionet, or Bradbury network", () => {
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "localnet");
+    expect(loadMeritRoundConfig()).toMatchObject({
+      network: "localnet",
+      endpoint: "http://127.0.0.1:4000/api",
+      chainId: 61127,
+    });
+
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "studionet");
+    expect(loadMeritRoundConfig()).toMatchObject({
+      network: "studionet",
+      endpoint: "https://studio.genlayer.com/api",
+      chainId: 61999,
+    });
+
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "bradbury");
+    expect(loadMeritRoundConfig()).toMatchObject({
+      network: "bradbury",
+      endpoint: "https://rpc-bradbury.genlayer.com",
+      chainId: 4221,
+    });
+  });
+
+  it("uses the SDK Bradbury chain and accepts persisted Bradbury records", () => {
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "bradbury");
+    const bradburyConfig = loadMeritRoundConfig();
+    const client = new MeritRoundClient(bradburyConfig, new MemoryTransactionStore());
+    expect((client as any).chain()).toBe(testnetBradbury);
+    expect((new MeritRoundClient({ ...config, network: "localnet", endpoint: "http://127.0.0.1:4000/api", chainId: 61127 }) as any).chain()).toBe(localnet);
+    expect((new MeritRoundClient(config) as any).chain()).toBe(studionet);
+
+    const storage = {
+      getItem: vi.fn().mockReturnValue(JSON.stringify([record({ network: "bradbury", chainId: 4221 })])),
+      setItem: vi.fn(),
+    };
+    const store = new PersistentTransactionStore(storage);
+    expect(store.list()).toHaveLength(1);
+    expect(store.list()[0].network).toBe("bradbury");
+  });
+
   it("broadcasts once and persists the returned transaction ID immediately", async () => {
     const store = new MemoryTransactionStore();
     const client = new MeritRoundClient(config, store);
