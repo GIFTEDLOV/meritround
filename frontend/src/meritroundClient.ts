@@ -69,29 +69,21 @@ const DEFAULT_NETWORKS: Record<MeritRoundNetwork, Omit<MeritRoundConfig, "networ
   bradbury: { endpoint: "https://rpc-bradbury.genlayer.com", chainId: 4221 },
 };
 
-function environment(): Record<string, string | undefined> {
-  const meta = import.meta as ImportMeta & {
-    env?: Record<string, string | undefined>;
-  };
-  return meta.env ?? {};
-}
-
 export function loadMeritRoundConfig(): MeritRoundConfig {
-  const env = environment();
-  const network: MeritRoundNetwork = env.VITE_MERITROUND_NETWORK === "localnet"
+  const network: MeritRoundNetwork = import.meta.env.VITE_MERITROUND_NETWORK === "localnet"
     ? "localnet"
-    : env.VITE_MERITROUND_NETWORK === "bradbury"
+    : import.meta.env.VITE_MERITROUND_NETWORK === "bradbury"
       ? "bradbury"
       : "studionet";
   const defaults = DEFAULT_NETWORKS[network];
-  const rawAddress = env.VITE_MERITROUND_CONTRACT_ADDRESS?.trim();
+  const rawAddress = import.meta.env.VITE_MERITROUND_CONTRACT_ADDRESS?.trim();
   const contractAddress = rawAddress && /^0x[0-9a-fA-F]{40}$/.test(rawAddress)
     ? getAddress(rawAddress)
     : undefined;
   return {
     network,
-    endpoint: env.VITE_GENLAYER_ENDPOINT?.trim() || defaults.endpoint,
-    chainId: Number(env.VITE_GENLAYER_CHAIN_ID || defaults.chainId),
+    endpoint: import.meta.env.VITE_GENLAYER_ENDPOINT?.trim() || defaults.endpoint,
+    chainId: Number(import.meta.env.VITE_GENLAYER_CHAIN_ID || defaults.chainId),
     ...(contractAddress ? { contractAddress } : {}),
   };
 }
