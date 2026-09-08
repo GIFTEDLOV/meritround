@@ -3,6 +3,25 @@
 MeritRound is a GenLayer Project for rubric-based competitions, community
 awards, accelerators, hackathons, design challenges, and open calls.
 
+## Current production deployment
+
+MeritRound is a FULL GENLAYER PROJECT: the production frontend reads from and
+writes to the deployed Intelligent Contract through the GenLayer network. It
+is not merely an Intelligent Contract artifact.
+
+- Live app: <https://meritround.vercel.app>
+- Network: Bradbury (`testnet-bradbury`)
+- Chain ID: `4221`
+- RPC: `https://rpc-bradbury.genlayer.com`
+- Contract: `0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e`
+- Explorer: <https://explorer-bradbury.genlayer.com/address/0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e>
+- Contract source SHA-256: `14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7`
+- Bradbury proof: [evidence/bradbury/bradbury-proof.json](evidence/bradbury/bradbury-proof.json)
+
+The frozen Bradbury proof records a finalized deployment with
+`FINISHED_WITH_RETURN` execution, `AGREE` consensus, and five `AGREE`
+validator receipts. The production frontend reads the same Bradbury contract.
+
 ## Product
 
 MeritRound lets an organizer define a rubric, collect finalist submissions,
@@ -102,11 +121,32 @@ Refreshes, polling interruptions, and RPC ambiguity never trigger a blind
 rebroadcast after a transaction ID exists. Browser records are scoped to the
 configured network, chain ID, and contract address.
 
-## Development proof
+## Verified Bradbury proof
 
-### Studionet live-proven
+The complete round lifecycle was proven on Bradbury for round
+`1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7`:
 
-The current development deployment is:
+```text
+create -> open -> register A -> register B -> lock -> resolve
+-> WINNER -> FINALIZED -> SUCCESS -> LATEST_FINAL readback
+```
+
+Deployment, `lock_round`, and `resolve_round` each reached `FINALIZED` with
+`FINISHED_WITH_RETURN` execution, `AGREE` consensus, and five `AGREE`
+validator receipts. The final round state is `FINALIZED`; the canonical result
+is `WINNER` for Finalist A, submission
+`f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9`.
+The `LATEST_FINAL` readback matched the stored result. Consensus here is a
+decision mechanism over the committed evidence, not a claim that validator
+consensus authenticates arbitrary real-world claims.
+
+The complete deployment and lifecycle record is
+[evidence/bradbury/bradbury-proof.json](evidence/bradbury/bradbury-proof.json).
+
+### Historical development evidence — Studionet
+
+The following is preserved historical development evidence and is not the
+current production deployment:
 
 - Network: Studionet
 - RPC: `https://studio.genlayer.com/api`
@@ -131,20 +171,26 @@ The complete transaction and evidence record is
 The earlier evidence-availability failure remains documented separately and
 was not overwritten or retried.
 
-### Direct Mode tested
+### Quality status
 
-The Direct Mode suite contains 33 tests covering state transitions,
+The latest verified release results are:
+
+- Direct contract tests: `33/33`
+- Frontend tests: `19/19`
+- UI tests: `3/3`
+- Critical security mutations: `9/9` killed
+- GenVM lint: PASS
+- Semantic validation: PASS
+- TypeScript: PASS
+- Production build: PASS
+- Security audit: PASS
+- Secret scan: PASS
+
+The Direct Mode suite covers state transitions,
 authorization, duplicate IDs, bounded input, evidence availability and
 integrity, malformed evidence, prompt-injection boundaries, strict result
 validation, terminal immutability, deterministic IDs, model failure, and
-validator disagreement. Frontend and UI model tests currently total 17 tests.
-
-### Not yet proven
-
-Bradbury deployment and Bradbury application lifecycle are not yet proven.
-The main MeritRound application has not been deployed to Vercel. The Vercel
-deployment referenced by the proof is a separate static host for the two exact
-demonstration evidence fixtures, not the main application.
+validator disagreement.
 
 ## Security and trust model
 
@@ -166,8 +212,8 @@ competition's evidence policy separately establishes that truth.
 
 ## Limitations
 
-- The current deployment is development-only Studionet evidence.
-- Bradbury deployment is intentionally pending release-gate completion.
+- Production is deployed on Bradbury; historical Studionet records remain in
+  the repository as development provenance.
 - The application uses browser wallet identity; it does not provide email
   authentication or centralized accounts.
 - V1 does not include tokenomics, payouts, governance, reputation, appeals,

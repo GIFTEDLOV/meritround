@@ -1,0 +1,20 @@
+{
+  "project": "MeritRound",
+  "network": "testnet-bradbury",
+  "chain_id": 4221,
+  "rpc": "https://rpc-bradbury.genlayer.com",
+  "contract_address": "0x06404943AbFC5Da4c2fC664d5d17339F5f52F65e",
+  "deployment_tx": "0x5ad403f1b9818fd22a18da6cc92db5400578df88b12c48bc55a5c199dbc32b3f",
+  "status": "FINALIZED",
+  "execution": "FINISHED_WITH_RETURN",
+  "consensus": "AGREE",
+  "validator_receipts": [
+    "AGREE",
+    "AGREE",
+    "AGREE",
+    "AGREE",
+    "AGREE"
+  ],
+  "contract_source_sha256": "14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7",
+  "proof_artifact": "evidence/bradbury/bradbury-proof.json"
+}

@@ -1,7 +1,15 @@
-# MeritRound development integration
+# MeritRound development integration — HISTORICAL DEVELOPMENT RECORD
 
-This document records the Hour 2 development integration. It is deliberately
-not a Bradbury or production deployment claim.
+> This document records earlier development integrations and release-freeze
+> decisions. It is not the current production status. For the current release,
+> see [README.md](../README.md),
+> [deployments/bradbury.json](../deployments/bradbury.json),
+> [evidence/bradbury/bradbury-proof.json](../evidence/bradbury/bradbury-proof.json),
+> and <https://meritround.vercel.app>.
+
+This document records the Hour 2 development integration as it existed at that
+time. It is deliberately not a statement of the current Bradbury production
+deployment.
 
 ## Network and deployment
 
@@ -62,10 +70,10 @@ Provisional materialized results are never presented as durable final state.
 The pinned SDK and installed CLI did not expose the newer fee-estimation or
 Transaction Kit profiling surface. Hour 2 therefore does not claim a measured
 fee profile or add arbitrary magic constants. Development writes use the
-current SDK write path with zero value; fee profiling remains an explicit
-follow-up before production deployment.
+SDK write path available at that time with zero value; fee profiling was an
+explicit follow-up before production deployment.
 
-## Release-freeze Bradbury gate
+## Historical release-freeze Bradbury gate (at that time)
 
 The frozen contract source SHA-256 is
 `14bb755eb33ee3a7ae81c41eb0f7a94d371c6d980759b2d6669760021f0d86c7`.
@@ -73,18 +81,20 @@ The frozen contract source SHA-256 is
 `Uint8Array`, so the deployable source bytes are byte-identical to that source
 hash; no generated deployable artifact is used.
 
-The read-only Bradbury gate is
+At the time of the release-freeze work, the read-only Bradbury gate was
 [`scripts/bradbury_preflight.ps1`](../scripts/bradbury_preflight.ps1). It checks
 RPC health, chain identity, deployer address and balance, latest/pending nonce,
 pending-transaction risk, the frozen source hash, and fee-estimation
 availability. It never signs or broadcasts.
 
-The current stable stack is GenLayer CLI `0.39.1`, `genlayer-js` `1.1.8`, and
-`genlayer-test` `0.29.2`. Current GenLayer Consensus v0.6 guidance requires a
+At that time, the stable stack was GenLayer CLI `0.39.1`, `genlayer-js`
+`1.1.8`, and `genlayer-test` `0.29.2`. The then-current GenLayer Consensus v0.6 guidance required a
 coherent compatible release-candidate family and measured fee distribution for
 fee-charging deployments. The installed stable CLI has no `estimate-fees`
 command or fee-distribution submission path, so the Bradbury gate remains
-blocked until a compatible stack is deliberately selected and verified.
+blocked at that historical stage until a compatible stack was deliberately
+selected and verified. The later verified production deployment is recorded in
+the current Bradbury proof linked above.
 
 ## Development lifecycle evidence
 
