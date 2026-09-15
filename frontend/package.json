@@ -3,8 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@genlayer/transaction-kit": "0.1.0-rc.2",
-    "genlayer-js": "2.0.0-rc.1"
+    "genlayer-js": "1.1.8"
   },
   "devDependencies": {
     "typescript": "^5.6.2",

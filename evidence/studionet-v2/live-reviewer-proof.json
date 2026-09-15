@@ -1,0 +1,60 @@
+{
+  "network": "studionet",
+  "rpc": "https://studio.genlayer.com/api",
+  "chain_id": 61999,
+  "contract_address": "0x815deBdB251FAC07c6eaD1F7BC65D26116ED5ca6",
+  "deployment_tx": "0x174f6479531a45d7573c059c3d8a6198d047f5419976c244711ef0c507d3bae7",
+  "source_sha256": "96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af",
+  "round": {
+    "round_id": "6f9ba7ae4a51a6503548f6ee86dd004f18e4cb8650e7d415307c289467c1939d",
+    "create_tx": "0xc44e41c53647c203b6a17ba12a2ec90c7f890dde98a62e3d597da47314eb2921",
+    "open_tx": "0x0f7d5462ace5413a9239e8059e051ee8f1c849e9e88c5f88a3b23b8de5d4db71",
+    "register_a_tx": "0x8ee7273490444e7043e3520d3da909cb3eb60c04253756d4745f27c4f4cb5215",
+    "register_b_tx": "0x02cb413b69913a2580169a55fa727e20fd8dbd782353fe8cf6485c544b17fe24",
+    "submission_a": "c95ce28fc140d0365ea9fe58de3a1c2ea948e0d5f88ebeddffd618430373a8d6",
+    "submission_b": "69cd5791670d96a360c990a236802b3d9fb96015f6f75f30ddad3f23458d4eac",
+    "set_finalist_a_tx": "0x3c92ecfbbac282c1cef8acbb171ff0016b749fb6bca2c7477884146268fb2859",
+    "set_finalist_b_tx": "0x1b856a8656107790c872cab6ac13a80af5852710aa01e749b75ab8b2d3d066f7",
+    "lock_tx": "0x8ec97a2d8a24a8eb2172a315e600f9ab18aed685e5a518c3d256ce618d041667",
+    "recover_a_tx": "0x95adc4b19ac5cea5c12f9079b0c530b1a8465817cf2eb60271fff7ae564774d9",
+    "recover_b_tx": "0x52a1bbd35deb07454e0273049966a961fd40cbf69161227f9906706c3818b563",
+    "resolve_tx": "0xc2a0ff837ecbc9e075100fde1fb08653fa1118de9449d0332c6b80743b0ae0e8",
+    "final_state": "INCONCLUSIVE",
+    "result_outcome": "INCONCLUSIVE",
+    "result_submission_id": "",
+    "resolution_web_fetch_count": 0,
+    "finalist_selection_verified": true,
+    "finalist_lock_verified": true,
+    "evidence_a_verified": true,
+    "evidence_b_verified": true,
+    "unavailable_original_url_recovered": true
+  },
+  "negative_cases": [
+    {
+      "tx": "0x0658969590f7ded8d20160bd84dbdcdd9d664b2df9880ca74d8dc22596bca1de",
+      "method": "set_finalist",
+      "expected_failure": "BUSINESS_ILLEGAL_STATE_FINALIST",
+      "verified": true
+    }
+  ],
+  "readback": {
+    "finalist_ids": [
+      "69cd5791670d96a360c990a236802b3d9fb96015f6f75f30ddad3f23458d4eac",
+      "c95ce28fc140d0365ea9fe58de3a1c2ea948e0d5f88ebeddffd618430373a8d6"
+    ],
+    "evidence_a_sha256": "2cd55943b4b65a8416245607f16c2893e5ac39ddbb036e62297601d254bd6794",
+    "evidence_b_sha256": "201f8c0954720a6b11bf316f4fe453d1f1b4d6543c30323453a86190db0012bb",
+    "resolution_uses_stored_snapshots": true
+  },
+  "frontend": {
+    "network": "studionet",
+    "rpc": "https://studio.genlayer.com/api",
+    "chain_id": 61999,
+    "contract_address": "0x815deBdB251FAC07c6eaD1F7BC65D26116ED5ca6",
+    "public_url": "https://meritround.vercel.app",
+    "public_root_status": 200,
+    "public_bundle_contains_studionet_rpc": true,
+    "public_bundle_contains_chain_id": true,
+    "public_bundle_contains_contract_address": true
+  }
+}

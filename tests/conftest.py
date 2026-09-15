@@ -72,7 +72,6 @@ def _safe_cleanup(self: VMContext) -> None:
 loader._inject_message_to_fd0 = _safe_inject_message_to_fd0
 VMContext._cleanup_after_deactivate = _safe_cleanup
 
-# The V2 candidate uses the current v0.6-style ``import genlayer as gl`` ABI.
-# Pin direct tests to the cached v0.6 runner instead of allowing the loader to
-# select a preview bundle by lexical version ordering.
-sdk_loader.list_cached_versions = lambda: ["v0.6.0-rc2"]
+# Stable direct tests select the GenVM bundle from the contract dependency and
+# the GENVM_VERSION environment variable.  Do not pin this harness to the
+# preview v0.6 bundle: it does not contain the documented stable runner.

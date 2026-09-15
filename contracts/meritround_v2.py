@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:9b8kjyda2ycxyq4ea6g4yfpnydxhd52gqba5rb8dw7krkh5mn9p0" }
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 
 """MeritRound V2: explicit finalist control and pinned evidence liveness."""
 
@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
-import genlayer as gl
+from genlayer import *
 
 
 STATE_DRAFT = "DRAFT"
@@ -31,11 +31,11 @@ MAX_FINALISTS = 16
 MAX_SUBMISSIONS = 64
 
 
-@gl.storage.allow
+@allow_storage
 @dataclass
 class RoundRecord:
     round_id: str
-    organizer: gl.Address
+    organizer: Address
     title: str
     description: str
     rubric: str
@@ -43,18 +43,18 @@ class RoundRecord:
     evaluation_universe_digest: str
 
 
-@gl.storage.allow
+@allow_storage
 @dataclass
 class SubmissionRecord:
     submission_id: str
     round_id: str
-    submitter: gl.Address
+    submitter: Address
     title: str
     evidence_url: str
     expected_sha256: str
 
 
-@gl.storage.allow
+@allow_storage
 @dataclass
 class EvidenceSnapshotRecord:
     round_id: str
@@ -65,7 +65,7 @@ class EvidenceSnapshotRecord:
     source_url: str
 
 
-@gl.storage.allow
+@allow_storage
 @dataclass
 class ResultRecord:
     round_id: str
@@ -73,7 +73,7 @@ class ResultRecord:
     submission_id: str
     result_digest: str
     evaluation_universe_digest: str
-    resolver: gl.Address
+    resolver: Address
 
 
 def _fail(message: str) -> None:
@@ -340,15 +340,15 @@ def _consensus_evaluate(
     return gl.vm.run_nondet(leader, validator)
 
 
-class MeritRound(gl.contract.Contract):
-    rounds: gl.storage.TreeMap[str, RoundRecord]
-    submissions: gl.storage.TreeMap[str, SubmissionRecord]
-    round_ids: gl.storage.DynArray[str]
-    round_submission_ids: gl.storage.TreeMap[str, gl.storage.DynArray[str]]
-    round_selected_ids: gl.storage.TreeMap[str, gl.storage.DynArray[str]]
-    round_finalist_ids: gl.storage.TreeMap[str, gl.storage.DynArray[str]]
-    evidence_snapshots: gl.storage.TreeMap[str, EvidenceSnapshotRecord]
-    results: gl.storage.TreeMap[str, ResultRecord]
+class MeritRound(gl.Contract):
+    rounds: TreeMap[str, RoundRecord]
+    submissions: TreeMap[str, SubmissionRecord]
+    round_ids: DynArray[str]
+    round_submission_ids: TreeMap[str, DynArray[str]]
+    round_selected_ids: TreeMap[str, DynArray[str]]
+    round_finalist_ids: TreeMap[str, DynArray[str]]
+    evidence_snapshots: TreeMap[str, EvidenceSnapshotRecord]
+    results: TreeMap[str, ResultRecord]
 
     def __init__(self):
         pass

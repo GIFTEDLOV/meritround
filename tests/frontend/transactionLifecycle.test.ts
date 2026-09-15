@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { localnet, studioDevnet, studionet, testnetBradbury } from "genlayer-js/chains";
+import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
 import {
   loadMeritRoundConfig,
   computeRoundId,
@@ -88,11 +88,11 @@ afterEach(() => {
 });
 
 describe("MeritRound transaction lifecycle", () => {
-  it("defaults the existing app to Studio Dev", () => {
+  it("defaults the production app to Studionet", () => {
     expect(loadMeritRoundConfig()).toMatchObject({
-      network: "studio-dev",
-      endpoint: "https://studio-dev.genlayer.com/api",
-      chainId: studioDevnet.id,
+      network: "studionet",
+      endpoint: "https://studio.genlayer.com/api",
+      chainId: studionet.id,
     });
   });
 
@@ -225,22 +225,11 @@ describe("MeritRound transaction lifecycle", () => {
     expect((client.readClient as any).getTransaction).toHaveBeenCalledWith({ hash: TX_ID });
   });
 
-  it("uses Transaction Kit fresh fee estimation and submits exactly once", async () => {
+  it("uses the stable SDK writer and submits exactly once", async () => {
     const store = new MemoryTransactionStore();
     const client = new MeritRoundClient(config, store);
-    (client as any).account = ACCOUNT;
-    const order: string[] = [];
-    const kit = {
-      estimate: vi.fn().mockImplementation(async () => {
-        order.push("estimate");
-        return { feeValue: 123n, gasless: false };
-      }),
-      submit: vi.fn().mockImplementation(async () => {
-        order.push("submit");
-        return { genlayerTxId: TX_ID, evmTxHash: TX_ID };
-      }),
-    };
-    (client as any).transactionKit = kit;
+    const writeContract = vi.fn().mockResolvedValue(TX_ID);
+    attachWriteClient(client, writeContract);
 
     const operation = {
       operationId: "kit-operation",
@@ -251,41 +240,24 @@ describe("MeritRound transaction lifecycle", () => {
     };
     const result = await client.sendWriteOnce(operation);
 
-    expect(order).toEqual(["estimate", "submit"]);
-    expect(kit.estimate).toHaveBeenCalledWith(
-      { preset: "standard" },
-      expect.objectContaining({ kind: "write", method: "open_round" }),
-    );
-    expect(kit.submit).toHaveBeenCalledTimes(1);
+    expect(writeContract).toHaveBeenCalledTimes(1);
     expect(result.txId).toBe(TX_ID);
-    expect(result.evmTxHash).toBe(TX_ID);
     expect(store.get("kit-operation")?.txId).toBe(TX_ID);
   });
 
-  it("persists the captured hash when kit submission becomes ambiguous", async () => {
+  it("does not persist a transaction when the stable SDK returns no hash", async () => {
     const store = new MemoryTransactionStore();
     const client = new MeritRoundClient(config, store);
-    (client as any).account = ACCOUNT;
-    (client as any).transactionKit = {
-      estimate: vi.fn().mockResolvedValue({ feeValue: 123n, gasless: false }),
-      submit: vi.fn().mockImplementation(async () => {
-        (client as any).lastEvmTxHash = TX_ID;
-        throw new Error("RPC response interrupted after broadcast");
-      }),
-    };
+    attachWriteClient(client, vi.fn().mockResolvedValue(undefined));
 
-    const result = await client.sendWriteOnce({
-      operationId: "ambiguous-kit-operation",
+    await expect(client.sendWriteOnce({
+      operationId: "missing-hash-operation",
       method: "open_round",
       args: [ROUND_ID],
       expectedState: { kind: "round-state", roundId: ROUND_ID, state: "OPEN" },
       roundId: ROUND_ID,
-    });
-
-    expect(result.txId).toBe(TX_ID);
-    expect(result.phase).toBe("SUBMITTED");
-    expect(result.error).toContain("same transaction ID");
-    expect(store.get("ambiguous-kit-operation")?.txId).toBe(TX_ID);
+    })).rejects.toThrow();
+    expect(store.get("missing-hash-operation")).toBeUndefined();
   });
 
   it("never rebroadcasts after a tracking timeout", async () => {

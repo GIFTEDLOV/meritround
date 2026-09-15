@@ -1,0 +1,13 @@
+{
+    "broadcast_count":  0,
+    "source_bytes":  29436,
+    "source_sha256":  "96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af",
+    "chain_id":  61999,
+    "latest_nonce":  "0x0",
+    "time":  "2026-09-15T15:42:52.0033784Z",
+    "rpc":  "https://studio.genlayer.com/api",
+    "pending_nonce":  "0x0",
+    "balance_wei":  "0x8ac7230489e80000",
+    "network":  "studionet",
+    "deployer":  "0xcb5a845638cbc1f95d7f8343278685682c3ba13f"
+}

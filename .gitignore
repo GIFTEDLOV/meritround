@@ -19,3 +19,5 @@ frontend/.vite/
 artifacts/
 coverage/
 *.log
+.vercel/
+.env*

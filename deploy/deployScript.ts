@@ -4,14 +4,13 @@ import path from "node:path";
 import type {
   GenLayerClient,
   TransactionHash,
-  TransactionFeeOptions,
   TransactionStatus,
 } from "genlayer-js/types";
 
 const FINALIZED_STATUS = "FINALIZED" as TransactionStatus;
-const TARGET_NETWORK = "studio-dev";
-const TARGET_RPC = "https://studio-dev.genlayer.com/api";
-const TARGET_CHAIN_ID = 61997;
+const TARGET_NETWORK = "studionet";
+const TARGET_RPC = "https://studio.genlayer.com/api";
+const TARGET_CHAIN_ID = 61999;
 
 function jsonSafe(value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
@@ -35,7 +34,7 @@ export default async function main(client: GenLayerClient<any>) {
   const manifestPath = path.resolve(repoRoot, "deployments/v2/SOURCE_MANIFEST.json");
   const pendingPath = path.resolve(
     repoRoot,
-    "deployments/v2/studio-dev-deployment.corrected.pending.json",
+    "deployments/v2/studionet-deployment.pending.json",
   );
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
     source_path?: string;
@@ -63,29 +62,12 @@ export default async function main(client: GenLayerClient<any>) {
     );
   }
 
-  // genlayer-js defaults an omitted fees object to a zero-value distribution.
-  // Studio-based networks reject that outer EVM transaction before a GenLayer
-  // tx exists.
-  // Estimate and pass the complete official fee options on this exact deploy.
-  const feeEstimate = await client.estimateTransactionFees();
-  if (feeEstimate.feeValue <= 0n) {
-    throw new Error("Fresh Studio Dev deployment fee estimate returned zero feeValue");
-  }
-  const fees: TransactionFeeOptions = {
-    distribution: feeEstimate.distribution,
-    ...(feeEstimate.messageAllocations
-      ? { messageAllocations: feeEstimate.messageAllocations }
-      : {}),
-    feeValue: feeEstimate.feeValue,
-  };
-  console.log("Fresh Studio Dev deployment fee estimate.", jsonSafe(feeEstimate));
-
   const persist = (extra: Record<string, unknown>) => {
     writeFileSync(
       pendingPath,
       `${JSON.stringify(
         jsonSafe({
-      mode: "MERITROUND_V2_STUDIO_DEV_DEPLOYMENT",
+          mode: "MERITROUND_V2_STUDIONET_DEPLOYMENT",
           network: TARGET_NETWORK,
           rpc: TARGET_RPC,
           chain_id: TARGET_CHAIN_ID,
@@ -93,7 +75,6 @@ export default async function main(client: GenLayerClient<any>) {
           source_path: relativeSourcePath,
           source_sha256: sourceSha256,
           source_bytes: sourceBytes.byteLength,
-          fee_estimate: feeEstimate,
           deployment_attempt_count: 1,
           rebroadcast: false,
           ...extra,
@@ -110,7 +91,6 @@ export default async function main(client: GenLayerClient<any>) {
     deployTransaction = (await client.deployContract({
       code: contractCode,
       args: [],
-      fees,
     })) as TransactionHash;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

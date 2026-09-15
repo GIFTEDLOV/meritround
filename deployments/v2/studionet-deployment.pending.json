@@ -1,0 +1,29 @@
+{
+  "mode": "MERITROUND_V2_STUDIONET_DEPLOYMENT",
+  "network": "studionet",
+  "rpc": "https://studio.genlayer.com/api",
+  "chain_id": 61999,
+  "deployer": "0xcb5a845638cbc1f95d7f8343278685682c3ba13f",
+  "source_path": "contracts/meritround_v2.py",
+  "source_sha256": "96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af",
+  "source_bytes": 29436,
+  "broadcast_count": 1,
+  "rebroadcast": false,
+  "deployment_tx": "0x174f6479531a45d7573c059c3d8a6198d047f5419976c244711ef0c507d3bae7",
+  "final_status": "FINALIZED",
+  "consensus": "MAJORITY_AGREE",
+  "execution": "SUCCESS",
+  "nonce": 0,
+  "contract_address": "0x815deBdB251FAC07c6eaD1F7BC65D26116ED5ca6",
+  "contract_code_present": true,
+  "contract_code_sha256": "96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af",
+  "contract_code_bytes": 29436,
+  "schema_methods": 20,
+  "contract_info": {
+    "name": "MeritRound",
+    "version": "2",
+    "identity_scheme": "MERITROUND_SUBMISSION_V2 binds expected_sha256, not URL",
+    "evidence_mode": "PINNED_EXACT_BYTES_ONLY",
+    "resolve_web_fetches": 0
+  }
+}

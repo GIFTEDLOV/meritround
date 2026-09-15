@@ -1,1 +1,1 @@
-6e21cb5f1361f80f5d09d20087122d271edec6c96d7270d44f6234d3b588272b *contracts/meritround_v2.py
+96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af *contracts/meritround_v2.py
