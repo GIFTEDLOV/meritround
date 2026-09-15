@@ -1,0 +1,17 @@
+{
+  "manifest_version": 1,
+  "project": "MeritRound",
+  "contract": "MeritRound",
+  "version": "2",
+  "source_path": "contracts/meritround_v2.py",
+  "source_sha256": "6e21cb5f1361f80f5d09d20087122d271edec6c96d7270d44f6234d3b588272b",
+  "source_bytes": 29586,
+  "historical_v1_source_path": "contracts/meritround.py",
+  "intended_primary_network": "testnet-bradbury",
+  "intended_primary_chain_id": 4221,
+  "fallback_network": "studionet",
+  "fallback_chain_id": 61999,
+  "freeze_base_commit": "3d5244960b858fcc052e9054992a3c341418646b",
+  "frozen_on": "2026-09-13",
+  "network_writes_at_freeze": false
+}

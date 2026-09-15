@@ -1,0 +1,42 @@
+{
+  "mode": "MERITROUND_V2_STUDIO_DEV_DEPLOYMENT",
+  "network": "studio-dev",
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "chain_id": 61997,
+  "sender": "0xcb5a845638cbc1f95d7f8343278685682c3ba13f",
+  "source_path": "contracts/meritround_v2.py",
+  "source_sha256": "6e21cb5f1361f80f5d09d20087122d271edec6c96d7270d44f6234d3b588272b",
+  "deployment_attempt_count": 1,
+  "deployment_tx": "0x0551422a1f9288ec8ae99125de45a716afdda067f00f436eacf68c8beba765c7",
+  "transaction_kind": "outer_evm_submission",
+  "genlayer_transaction_id": null,
+  "fee_path": "official genlayer estimate-fees readback; initial deploy omitted fee options",
+  "read_only_fee_quote": {
+    "distribution": {
+      "leaderTimeunitsAllocation": "100",
+      "validatorTimeunitsAllocation": "200",
+      "appealRounds": "0",
+      "executionBudgetPerRound": "25000000000000000",
+      "executionConsumed": "0",
+      "totalMessageFees": "0",
+      "rotations": ["3"],
+      "maxPriceGenPerTimeUnit": "2",
+      "storageFeeMaxGasPrice": "300000000",
+      "receiptFeeMaxGasPrice": "300000000"
+    },
+    "feeValue": "100000000000010352",
+    "policy": {
+      "enabled": true,
+      "genPerTimeUnit": "1",
+      "storageUnitPrice": "250000000",
+      "receiptGasPrice": "250000000",
+      "executionBudgetFloor": "76548000000000",
+      "timeUnitOverlayBps": "1500"
+    }
+  },
+  "final_status": "EVM_REVERTED_NO_GENLAYER_TX",
+  "execution": "NOT_EXECUTED",
+  "error": "FeeValueMustBeNonZero(1)",
+  "contract_address": null,
+  "rebroadcast": false
+}

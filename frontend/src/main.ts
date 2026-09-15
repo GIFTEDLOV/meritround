@@ -11,12 +11,14 @@ import {
   type RoundState,
   type RoundView,
   type SubmissionView,
+  type EvidenceStatusView,
+  type SelectionState,
   type TransactionRecord,
   type TransactionPhase,
   type WalletState,
   WalletError,
 } from "./meritroundClient";
-import { activityStepIndex, stateLabel as uiStateLabel } from "./uiModel";
+import { activityStepIndex, evidenceStatusMeta, selectionStateMeta, stateLabel as uiStateLabel } from "./uiModel";
 
 const config = loadMeritRoundConfig();
 const transactionStore = createBrowserTransactionStore();
@@ -117,6 +119,8 @@ function stateClass(state: string): string {
 }
 
 function networkLabel(): string {
+  if (config.network === "bradbury") return "Bradbury";
+  if (config.network === "studio-dev") return "Studio Dev";
   return config.network === "studionet" ? "Studionet" : "Localnet";
 }
 
@@ -290,7 +294,7 @@ function landingPage(): string {
       <div class="section-intro"><p class="eyebrow">How it works</p><h2>From brief to result, with the boundary visible.</h2></div>
       <div class="flow-grid">
         <article><span>01</span><h3>Define the rubric</h3><p>Write the criteria that the round will use. The organizer owns the brief, not the final verdict.</p></article>
-        <article><span>02</span><h3>Collect finalists</h3><p>Register submissions with HTTPS evidence references and exact SHA-256 commitments.</p></article>
+        <article><span>02</span><h3>Collect submissions</h3><p>Register submissions with HTTPS evidence references and exact SHA-256 commitments; the organizer selects finalists afterward.</p></article>
         <article><span>03</span><h3>Lock the universe</h3><p>Freeze the rubric, finalist set, and evidence commitments so they cannot shift during judging.</p></article>
         <article><span>04</span><h3>Read the result</h3><p>GenLayer validators independently evaluate the same admissible evidence and store a tiny canonical outcome.</p></article>
       </div>
@@ -304,12 +308,12 @@ function landingPage(): string {
 }
 
 function roundCard(round: RoundView, result?: ResultView): string {
-  const count = round.finalist_ids.length || round.submission_ids.length;
+  const count = round.finalist_ids.length || round.selected_count || round.submission_ids.length;
   const resultCopy = result?.exists
     ? result.outcome === "WINNER"
       ? `Winner ${shorten(result.submission_id ?? "", 6)}`
       : "No winner established"
-    : `${count} finalist${count === 1 ? "" : "s"}`;
+    : `${count} registered submission${count === 1 ? "" : "s"}`;
   return `
     <a class="round-card" data-link href="/app/rounds/${escapeHtml(round.round_id)}">
       <div class="round-card-top"><span class="round-id">${escapeHtml(shorten(round.round_id, 8))}</span>${statePill(round.state)}</div>
@@ -423,15 +427,23 @@ function newRoundPage(): string {
   `;
 }
 
-function detailActions(round: RoundView): string {
+function detailActions(round: RoundView, evidenceStatuses: Map<string, EvidenceStatusView>): string {
   const organizer = Boolean(wallet.address && wallet.address.toLowerCase() === round.organizer.toLowerCase());
   const actions: string[] = [];
-  if (round.state === "DRAFT" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="open_round" data-round-id="${escapeHtml(round.round_id)}">Open submissions <span>→</span></button>`);
-  if (round.state === "OPEN") {
-    actions.push(`<a class="button button-primary" data-link href="/app/rounds/${escapeHtml(round.round_id)}/submit">Add finalist <span>+</span></a>`);
-    if (organizer && round.submission_ids.length >= 2) actions.push(`<button class="button button-secondary" data-action="contract-write" data-method="lock_round" data-round-id="${escapeHtml(round.round_id)}">Lock finalists</button>`);
+  if (round.state === "DRAFT" && organizer) {
+    actions.push(`<button class="button button-primary" data-action="contract-write" data-method="open_round" data-round-id="${escapeHtml(round.round_id)}">Open submissions <span>→</span></button>`);
   }
-  if (round.state === "LOCKED" && organizer) actions.push(`<button class="button button-primary" data-action="contract-write" data-method="resolve_round" data-round-id="${escapeHtml(round.round_id)}">Evaluate finalists <span>→</span></button>`);
+  if (round.state === "OPEN") {
+    actions.push(`<a class="button button-primary" data-link href="/app/rounds/${escapeHtml(round.round_id)}/submit">Register submission <span>+</span></a>`);
+    if (organizer) {
+      const canLock = round.selected_count >= 2 && round.selected_count <= 16;
+      actions.push(`<button class="button button-secondary" ${canLock ? "" : "disabled"} data-action="contract-write" data-method="lock_round" data-round-id="${escapeHtml(round.round_id)}">Lock selected (${round.selected_count}/16)</button>`);
+    }
+  }
+  if (round.state === "LOCKED" && organizer) {
+    const ready = round.finalist_ids.length > 0 && round.finalist_ids.every((id) => evidenceStatuses.get(id)?.status === "READY");
+    actions.push(`<button class="button button-primary" ${ready ? "" : "disabled"} data-action="contract-write" data-method="resolve_round" data-round-id="${escapeHtml(round.round_id)}">${ready ? "Evaluate locked finalists" : "Await evidence snapshots"} <span>→</span></button>`);
+  }
   return actions.length ? `<div class="detail-actions">${actions.join("")}</div>` : "";
 }
 
@@ -441,8 +453,24 @@ function stateBanner(round: RoundView): string {
   return `<section class="round-state-banner banner-${round.state.toLowerCase()}"><span class="banner-icon">${icon}</span><div><strong>${escapeHtml(meta.title)}</strong><p>${escapeHtml(meta.description)}</p></div>${round.state === "LOCKED" ? `<span class="banner-lock">Evaluation universe frozen</span>` : ""}</section>`;
 }
 
-function submissionCard(submission: SubmissionView, finalist: boolean, index: number): string {
-  return `<article class="submission-card"><div class="submission-card-top"><span class="submission-number">${String(index + 1).padStart(2, "0")}</span><span class="submission-role">${finalist ? "Finalist" : "Submission"}</span><span class="evidence-committed">✓ Evidence committed</span></div><h3>${escapeHtml(submission.title)}</h3><p class="submission-byline">Submitted by <code>${escapeHtml(shorten(submission.submitter, 8))}</code></p><div class="submission-card-footer"><a href="${escapeHtml(submission.evidence_url)}" target="_blank" rel="noreferrer">Open evidence ↗</a><details><summary>Technical details</summary><div class="evidence-details"><span>Submission ID</span><code>${escapeHtml(submission.submission_id)}</code><span>SHA-256 commitment</span><code>${escapeHtml(submission.expected_sha256)}</code></div></details></div></article>`;
+function submissionCardV2(
+  submission: SubmissionView,
+  round: RoundView,
+  organizer: boolean,
+  evidenceStatus: EvidenceStatusView | undefined,
+  index: number,
+): string {
+  const selectionState = submission.selection_state as SelectionState;
+  const selectionMeta = selectionStateMeta[selectionState];
+  const locked = selectionState === "LOCKED_FINALIST";
+  const ready = evidenceStatus?.status === "READY";
+  const control = round.state === "OPEN" && organizer
+    ? `<button class="button button-small button-quiet" data-action="contract-write" data-method="set_finalist" data-round-id="${escapeHtml(round.round_id)}" data-submission-id="${escapeHtml(submission.submission_id)}" data-selected="${selectionState === "SELECTED" ? "false" : "true"}">${selectionState === "SELECTED" ? "Deselect" : "Select finalist"}</button>`
+    : "";
+  const evidence = locked
+    ? `<div class="evidence-status ${ready ? "evidence-status-ready" : "evidence-status-recovery"}"><span>${escapeHtml(evidenceStatusMeta[ready ? "READY" : "NOT_PINNED"].label)}</span><small>${escapeHtml(ready ? "Authenticated snapshot stored; resolution can use these bytes." : "Pin the original or recover an exact-byte HTTPS mirror before resolving.")}</small>${!ready ? `<div class="evidence-actions"><button class="button button-small button-secondary" data-action="contract-write" data-method="pin_evidence" data-round-id="${escapeHtml(round.round_id)}" data-submission-id="${escapeHtml(submission.submission_id)}">Pin original</button><form data-form="recover-evidence" data-round-id="${escapeHtml(round.round_id)}" data-submission-id="${escapeHtml(submission.submission_id)}"><input required type="url" name="recoveryUrl" pattern="https://.*" placeholder="https://exact-byte-mirror.example/evidence.json" aria-label="HTTPS recovery mirror URL" /><button class="button button-small button-quiet" type="submit">Recover mirror</button></form></div>` : ""}</div>`
+    : "";
+  return `<article class="submission-card ${locked ? "submission-card-locked" : ""}"><div class="submission-card-top"><span class="submission-number">${String(index + 1).padStart(2, "0")}</span><span class="submission-role">${escapeHtml(selectionMeta.label)}</span><span class="evidence-committed">✓ SHA committed</span>${control}</div><h3>${escapeHtml(submission.title)}</h3><p class="submission-byline">Submitted by <code>${escapeHtml(shorten(submission.submitter, 8))}</code></p><p class="selection-copy">${escapeHtml(selectionMeta.description)}</p>${evidence}<div class="submission-card-footer"><a href="${escapeHtml(submission.evidence_url)}" target="_blank" rel="noreferrer">Open provenance URL ↗</a><details><summary>Technical details</summary><div class="evidence-details"><span>Submission ID</span><code>${escapeHtml(submission.submission_id)}</code><span>SHA-256 commitment</span><code>${escapeHtml(submission.expected_sha256)}</code>${evidenceStatus ? `<span>Snapshot</span><code>${escapeHtml(evidenceStatus.status)}</code>` : ""}</div></details></div></article>`;
 }
 
 function processPanel(round: RoundView, activity: TransactionRecord[]): string {
@@ -451,7 +479,7 @@ function processPanel(round: RoundView, activity: TransactionRecord[]): string {
   const activeEvaluation = evaluation && !evaluation.terminal;
   const steps = [
     ["Rubric committed", true],
-    ["Finalists locked", round.finalist_ids.length > 0],
+    ["Finalists locked", round.finalist_ids.length > 0 || round.selected_count >= 2],
     [activeEvaluation ? TX_PHASE_META[evaluation.phase].label : "Validators evaluate", ["EVALUATING", "FINALIZED", "INCONCLUSIVE"].includes(round.state) || Boolean(evaluation)],
     [round.state === "FINALIZED" || round.state === "INCONCLUSIVE" ? "Result read back" : "Result read back", round.state === "FINALIZED" || round.state === "INCONCLUSIVE"],
   ] as Array<[string, boolean]>;
@@ -478,14 +506,34 @@ async function detailPage(roundId: string): Promise<string> {
   try {
     const round = await client.getRound(roundId);
     const submissions = await Promise.all(round.submission_ids.map((id) => client.getSubmission(id)));
-    const result: ResultView = round.state === "FINALIZED" || round.state === "INCONCLUSIVE" ? await client.getResult(roundId) : { exists: false };
-    const activity = transactionStore.list().filter((record) => record.roundId === roundId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const result: ResultView = round.state === "FINALIZED" || round.state === "INCONCLUSIVE"
+      ? await client.getResult(roundId)
+      : { exists: false };
+    const evidenceStatuses = new Map<string, EvidenceStatusView>();
+    await Promise.all(round.finalist_ids.map(async (submissionId) => {
+      evidenceStatuses.set(submissionId, await client.getEvidenceStatus(roundId, submissionId));
+    }));
+    const activity = transactionStore.list()
+      .filter((record) => record.roundId === roundId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const organizer = Boolean(wallet.address && wallet.address.toLowerCase() === round.organizer.toLowerCase());
+    const readyCount = round.finalist_ids.filter((id) => evidenceStatuses.get(id)?.status === "READY").length;
+    const submissionMarkup = submissions
+      .map((submission, index) => submissionCardV2(submission, round, organizer, evidenceStatuses.get(submission.submission_id), index))
+      .join("");
     return `
       <div class="detail-top"><a class="back-link" data-link href="/app/rounds">← All rounds</a>${statePill(round.state)}<span class="detail-top-id">${escapeHtml(shorten(round.round_id, 12))}</span></div>
-      <section class="detail-hero"><div><p class="eyebrow">Selection round</p><h1>${escapeHtml(round.title)}</h1><p class="detail-description">${escapeHtml(round.description)}</p><div class="organizer-line"><span>Organized by</span><code>${escapeHtml(shorten(round.organizer, 10))}</code></div></div>${detailActions(round)}</section>
+      <section class="detail-hero"><div><p class="eyebrow">Selection round</p><h1>${escapeHtml(round.title)}</h1><p class="detail-description">${escapeHtml(round.description)}</p><div class="organizer-line"><span>Organized by</span><code>${escapeHtml(shorten(round.organizer, 10))}</code></div></div>${detailActions(round, evidenceStatuses)}</section>
       ${stateBanner(round)}
       ${round.state === "LOCKED" ? lockedEvaluationNotice(activity) : ""}
-      <section class="detail-grid"><div class="detail-main"><section class="panel rubric-panel"><div class="section-heading"><div><p class="eyebrow">Committed rubric</p><h2>The judging boundary</h2></div><span class="lock-mark">⌁</span></div><p class="rubric-text">${escapeHtml(round.rubric)}</p><div class="digest-line"><span>Evaluation universe digest</span><code>${escapeHtml(round.evaluation_universe_digest ? shorten(round.evaluation_universe_digest, 18) : "Pending lock")}</code></div></section><section class="finalists-section"><div class="section-heading"><div><p class="eyebrow">Finalist set</p><h2>${submissions.length} submission${submissions.length === 1 ? "" : "s"}</h2></div>${round.state === "OPEN" ? `<span class="muted">Open for additions</span>` : `<span class="muted">Frozen at lock</span>`}</div>${submissions.length ? `<div class="submission-list">${submissions.map((submission, index) => submissionCard(submission, round.finalist_ids.includes(submission.submission_id), index)).join("")}</div>` : emptyState("No finalists yet", "Open the round to begin accepting submissions.", "", "01")}</section></div><aside class="detail-aside"><div class="panel fact-panel"><div class="section-heading"><div><p class="eyebrow">Round facts</p><h2>At a glance</h2></div></div><dl><div><dt>Organizer</dt><dd>${escapeHtml(shorten(round.organizer, 8))}</dd></div><div><dt>State</dt><dd>${escapeHtml(stateLabel(round.state))}</dd></div><div><dt>Finalists</dt><dd>${round.finalist_ids.length || "Not locked"}</dd></div><div><dt>Evidence rule</dt><dd>HTTPS + SHA-256</dd></div></dl></div>${result.exists ? resultPanel(result, submissions, activity) : processPanel(round, activity)}<details class="panel technical-round-details"><summary>Technical details</summary><div><span>Round ID</span><code>${escapeHtml(round.round_id)}</code><span>Organizer</span><code>${escapeHtml(round.organizer)}</code><span>Evaluation digest</span><code>${escapeHtml(round.evaluation_universe_digest || "Not locked")}</code></div></details></aside></section>
+      <section class="detail-grid"><div class="detail-main">
+        <section class="panel rubric-panel"><div class="section-heading"><div><p class="eyebrow">Committed rubric</p><h2>The judging boundary</h2></div><span class="lock-mark">⌁</span></div><p class="rubric-text">${escapeHtml(round.rubric)}</p><div class="digest-line"><span>Evaluation universe digest</span><code>${escapeHtml(round.evaluation_universe_digest ? shorten(round.evaluation_universe_digest, 18) : "Pending lock")}</code></div></section>
+        <section class="finalists-section"><div class="section-heading"><div><p class="eyebrow">Submission registry</p><h2>${submissions.length} registered submission${submissions.length === 1 ? "" : "s"}</h2></div>${round.state === "OPEN" ? `<span class="muted">Select finalists before lock</span>` : `<span class="muted">${round.finalist_ids.length} locked finalist${round.finalist_ids.length === 1 ? "" : "s"}</span>`}</div>${submissions.length ? `<div class="submission-list">${submissionMarkup}</div>` : emptyState("No submissions yet", "Open the round to begin accepting submissions.", "", "01")}</section>
+      </div><aside class="detail-aside">
+        <div class="panel fact-panel"><div class="section-heading"><div><p class="eyebrow">Round facts</p><h2>At a glance</h2></div></div><dl><div><dt>Organizer</dt><dd>${escapeHtml(shorten(round.organizer, 8))}</dd></div><div><dt>State</dt><dd>${escapeHtml(stateLabel(round.state))}</dd></div><div><dt>Registered</dt><dd>${round.submission_ids.length}</dd></div><div><dt>Selected</dt><dd>${round.selected_count}</dd></div><div><dt>Locked finalists</dt><dd>${round.finalist_ids.length || "Not locked"}</dd></div>${round.state === "LOCKED" ? `<div><dt>Evidence ready</dt><dd>${readyCount}/${round.finalist_ids.length}</dd></div>` : ""}<div><dt>Evidence rule</dt><dd>HTTPS + SHA-256</dd></div></dl></div>
+        ${result.exists ? resultPanel(result, submissions, activity) : processPanel(round, activity)}
+        <details class="panel technical-round-details"><summary>Technical details</summary><div><span>Round ID</span><code>${escapeHtml(round.round_id)}</code><span>Organizer</span><code>${escapeHtml(round.organizer)}</code><span>Evaluation digest</span><code>${escapeHtml(round.evaluation_universe_digest || "Not locked")}</code></div></details>
+      </aside></section>
       ${activity.length ? `<section class="detail-activity"><div class="section-heading"><div><p class="eyebrow">Relevant activity</p><h2>Transaction history for this round</h2></div><a class="text-link" data-link href="/app/activity">View all →</a></div><div class="panel detail-activity-list">${activity.slice(0, 3).map((record) => transactionTimeline(record)).join("")}</div></section>` : ""}
     `;
   } catch (error) {
@@ -499,8 +547,8 @@ async function submitPage(roundId: string): Promise<string> {
     const round = await client.getRound(roundId);
     if (round.state !== "OPEN") return pageHeader("Submission", "Submissions are closed", "This round is no longer accepting additions.") + `<div class="closed-round panel"><span class="state-icon">${round.state === "LOCKED" ? "⌁" : "—"}</span><div><p class="eyebrow">${escapeHtml(stateLabel(round.state))}</p><h2>${escapeHtml(round.title)}</h2><p>The contract is currently ${escapeHtml(stateLabel(round.state).toLowerCase())}. The finalist set cannot be changed.</p><a class="button button-secondary" data-link href="/app/rounds/${escapeHtml(roundId)}">Back to round</a></div></div>`;
     return `
-      ${pageHeader("Add finalist", round.title, "Register a finalist with an exact HTTPS evidence commitment. Validators will fetch and verify the same bytes later.", `<a class="text-link" data-link href="/app/rounds/${escapeHtml(roundId)}">Back to round</a>`)}
-      <div class="submission-workflow"><div class="workflow-steps"><div class="workflow-step workflow-step-active"><span>01</span><strong>Evidence</strong><small>Reference exact bytes</small></div><div class="workflow-step"><span>02</span><strong>Commitment</strong><small>Bind the SHA-256</small></div><div class="workflow-step"><span>03</span><strong>Register</strong><small>Write shared state</small></div></div><form class="form-layout panel" data-form="submit-submission" data-round-id="${escapeHtml(roundId)}"><div class="form-main"><label>Finalist name or title<input required name="title" maxlength="160" placeholder="Name the work, team, or proposal" /></label><label>Evidence URL<input required type="url" name="evidenceUrl" maxlength="512" pattern="https://.*" placeholder="https://example.com/exact-evidence.json" /><small>HTTPS only. Prefer an immutable or content-addressed document.</small></label><div class="hash-field"><label>Expected SHA-256<input required name="expectedSha256" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 hexadecimal characters" /></label><button class="button button-quiet" type="button" data-action="hash-evidence">Calculate locally</button></div><div class="assistance-note"><span>i</span><p>Local calculation is convenience only. The contract re-fetches the URL and compares exact bytes before semantic evaluation. Browser CORS or source availability may prevent local calculation.</p></div><div class="submission-review"><p class="eyebrow">Review before registration</p><strong data-review="submission-title">Untitled finalist</strong><span data-review="submission-url">No evidence URL yet</span><code data-review="submission-hash">No commitment yet</code></div><button class="button button-primary button-large" type="submit">Register finalist <span>→</span></button></div><aside class="review-aside"><div class="review-card"><p class="eyebrow">Round boundary</p><h3>${escapeHtml(round.title)}</h3><div class="review-field"><span>Current state</span><strong>Open for submissions</strong></div><div class="review-field"><span>Round ID</span><strong>${escapeHtml(shorten(roundId, 10))}</strong></div><div class="review-field"><span>Evidence policy</span><strong>HTTPS + exact SHA-256</strong></div></div><div class="boundary-note"><span class="note-symbol">⌁</span><div><strong>Evidence stays evidence</strong><p>Do not submit a frontend-generated summary. Only the URL and exact commitment enter the evaluation universe.</p></div></div><details class="technical-details"><summary>Technical details</summary><p><code>register_submission(round_id, title, evidence_url, expected_sha256)</code></p></details></aside></form></div>
+      ${pageHeader("Register submission", round.title, "Register a submission with an exact HTTPS evidence commitment. Registration does not make it a finalist; the organizer selects finalists before lock.", `<a class="text-link" data-link href="/app/rounds/${escapeHtml(roundId)}">Back to round</a>`)}
+      <div class="submission-workflow"><div class="workflow-steps"><div class="workflow-step workflow-step-active"><span>01</span><strong>Evidence</strong><small>Reference exact bytes</small></div><div class="workflow-step"><span>02</span><strong>Commitment</strong><small>Bind the SHA-256</small></div><div class="workflow-step"><span>03</span><strong>Register</strong><small>Write shared state</small></div></div><form class="form-layout panel" data-form="submit-submission" data-round-id="${escapeHtml(roundId)}"><div class="form-main"><label>Submission name or title<input required name="title" maxlength="160" placeholder="Name the work, team, or proposal" /></label><label>Evidence URL<input required type="url" name="evidenceUrl" maxlength="512" pattern="https://.*" placeholder="https://example.com/exact-evidence.json" /><small>HTTPS only. This URL is provenance and transport; the SHA-256 is the evidence identity.</small></label><div class="hash-field"><label>Expected SHA-256<input required name="expectedSha256" minlength="64" maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 lowercase hexadecimal characters" /></label><button class="button button-quiet" type="button" data-action="hash-evidence">Calculate locally</button></div><div class="assistance-note"><span>i</span><p>Local calculation is convenience only. The contract authenticates exact bytes before semantic evaluation. Browser CORS or source availability may prevent local calculation.</p></div><div class="submission-review"><p class="eyebrow">Review before registration</p><strong data-review="submission-title">Untitled submission</strong><span data-review="submission-url">No evidence URL yet</span><code data-review="submission-hash">No commitment yet</code></div><button class="button button-primary button-large" type="submit">Register submission <span>→</span></button></div><aside class="review-aside"><div class="review-card"><p class="eyebrow">Round boundary</p><h3>${escapeHtml(round.title)}</h3><div class="review-field"><span>Current state</span><strong>Open for submissions</strong></div><div class="review-field"><span>Round ID</span><strong>${escapeHtml(shorten(roundId, 10))}</strong></div><div class="review-field"><span>Evidence policy</span><strong>HTTPS + exact SHA-256</strong></div></div><div class="boundary-note"><span class="note-symbol">⌁</span><div><strong>Selection happens separately</strong><p>Registering a submission does not automatically make it a finalist. Only an organizer-selected submission enters the locked evaluation universe.</p></div></div><details class="technical-details"><summary>Technical details</summary><p><code>register_submission(round_id, title, evidence_url, expected_sha256)</code></p></details></aside></form></div>
     `;
   } catch (error) {
     return pageHeader("Submission", "Round unavailable", "The round could not be read.") + errorState("Submission is unavailable", "The network did not return the round state.", error instanceof Error ? error.message : "Network read failed");
@@ -565,31 +613,73 @@ async function startTracking(record: TransactionRecord): Promise<void> {
   }
 }
 
-async function handleContractWrite(method: string, roundId: string): Promise<void> {
+async function handleContractWrite(method: string, roundId: string, submissionId?: string, selected?: boolean): Promise<void> {
   try {
     assertWalletAndConfig();
-    if (!wallet.address) throw new Error("Incomplete wallet context.");
+    if (!wallet.address) throw new Error("Connect a wallet before writing.");
     const round = await client.getRound(roundId);
-    const args: unknown[] = [roundId];
+    const organizer = round.organizer.toLowerCase() === wallet.address.toLowerCase();
+    let args: unknown[] = [roundId];
     let expectedState: TransactionRecord["expectedState"];
+
     if (method === "open_round") {
-      if (round.state !== "DRAFT" || round.organizer.toLowerCase() !== wallet.address.toLowerCase()) throw new Error("The contract does not allow this round to open for this wallet.");
+      if (round.state !== "DRAFT" || !organizer) throw new Error("Only the organizer can open this draft round.");
       expectedState = { kind: "round-state", roundId, state: "OPEN" };
+    } else if (method === "set_finalist") {
+      if (round.state !== "OPEN" || !organizer || !submissionId || selected === undefined) throw new Error("Only the organizer can change selection while the round is open.");
+      if (!round.submission_ids.includes(submissionId)) throw new Error("That submission is not registered in this round.");
+      const alreadySelected = round.selected_ids.includes(submissionId);
+      if (alreadySelected === selected) throw new Error("The requested finalist selection is already authoritative state.");
+      args = [roundId, submissionId, selected];
+      expectedState = { kind: "round-selection", roundId, submissionId, selected };
     } else if (method === "lock_round") {
-      if (round.state !== "OPEN" || round.organizer.toLowerCase() !== wallet.address.toLowerCase() || round.submission_ids.length < 2) throw new Error("A round needs at least two submissions and the organizer must lock it.");
-      expectedState = { kind: "round-state", roundId, state: "LOCKED" };
+      if (round.state !== "OPEN" || !organizer) throw new Error("Only the organizer can lock an open round.");
+      if (round.selected_count < 2 || round.selected_count > 16) throw new Error("Select between 2 and 16 finalists before locking.");
+      args = [roundId];
+      expectedState = { kind: "round-locked", roundId, finalistIds: [...round.selected_ids].sort() };
+    } else if (method === "pin_evidence") {
+      if (round.state !== "LOCKED" || !submissionId || !round.finalist_ids.includes(submissionId)) throw new Error("Only locked finalists can be pinned.");
+      const status = await client.getEvidenceStatus(roundId, submissionId);
+      if (status.status === "READY") throw new Error("This finalist already has an authenticated evidence snapshot.");
+      args = [roundId, submissionId];
+      expectedState = { kind: "evidence-ready", roundId, submissionId };
     } else if (method === "resolve_round") {
-      if (round.state !== "LOCKED" || round.organizer.toLowerCase() !== wallet.address.toLowerCase()) throw new Error("Only the organizer can evaluate a locked round.");
+      if (round.state !== "LOCKED" || !organizer) throw new Error("Only the organizer can resolve a locked round.");
+      const statuses = await Promise.all(round.finalist_ids.map((id) => client.getEvidenceStatus(roundId, id)));
+      if (statuses.some((status) => status.status !== "READY")) throw new Error("Resolve is disabled until every locked finalist has a READY evidence snapshot.");
       expectedState = { kind: "round-terminal", roundId, states: ["FINALIZED", "INCONCLUSIVE"] };
     } else {
       throw new Error("Unsupported contract action.");
     }
+
     const operationId = await makeOperationId(config, wallet.address, method, args);
-    const record = await client.sendWriteOnce({ operationId, method, args, expectedState, roundId });
+    const record = await client.sendWriteOnce({ operationId, method, args, expectedState, roundId, ...(submissionId ? { submissionId } : {}) });
     setNotice(`${method === "resolve_round" ? "Evaluation" : "Transaction"} recorded as ${shorten(record.txId, 10)}. MeritRound will track this same ID.`, "success");
     void startTracking(record);
   } catch (error) {
     setNotice(error instanceof Error ? error.message : "The action could not be submitted.", "error");
+  }
+}
+
+async function handleRecoverEvidence(form: HTMLFormElement): Promise<void> {
+  try {
+    assertWalletAndConfig();
+    if (!wallet.address || !form.dataset.roundId || !form.dataset.submissionId) throw new Error("Evidence recovery context is missing.");
+    const roundId = form.dataset.roundId;
+    const submissionId = form.dataset.submissionId;
+    const recoveryUrl = String(new FormData(form).get("recoveryUrl") ?? "").trim();
+    if (!recoveryUrl.startsWith("https://")) throw new Error("Only HTTPS recovery mirrors are accepted.");
+    const round = await client.getRound(roundId);
+    if (round.state !== "LOCKED" || !round.finalist_ids.includes(submissionId)) throw new Error("Recovery is allowed only for a locked finalist.");
+    const status = await client.getEvidenceStatus(roundId, submissionId);
+    if (status.status === "READY") throw new Error("This finalist already has an authenticated evidence snapshot.");
+    const args = [roundId, submissionId, recoveryUrl];
+    const operationId = await makeOperationId(config, wallet.address, "recover_evidence", args);
+    const record = await client.sendWriteOnce({ operationId, method: "recover_evidence", args, expectedState: { kind: "evidence-ready", roundId, submissionId }, roundId, submissionId });
+    setNotice(`Evidence recovery recorded as ${shorten(record.txId, 10)}.`, "success");
+    void startTracking(record);
+  } catch (error) {
+    setNotice(error instanceof Error ? error.message : "Evidence recovery failed.", "error");
   }
 }
 
@@ -629,7 +719,7 @@ async function handleSubmitSubmission(form: HTMLFormElement): Promise<void> {
     const submissionId = await computeSubmissionId(roundId, wallet.address, title, evidenceUrl, expectedSha256);
     const operationId = await makeOperationId(config, wallet.address, "register_submission", args);
     const record = await client.sendWriteOnce({ operationId, method: "register_submission", args, expectedState: { kind: "submission-registered", roundId, submissionId }, roundId, submissionId });
-    setNotice(`Finalist registration recorded as ${shorten(record.txId, 10)}.`, "success");
+    setNotice(`Submission registration recorded as ${shorten(record.txId, 10)}.`, "success");
     void startTracking(record);
     navigate(`/app/rounds/${roundId}`);
   } catch (error) {
@@ -672,6 +762,11 @@ async function showEvaluationModal(roundId: string): Promise<void> {
   try {
     const round = await client.getRound(roundId);
     const submissions = await Promise.all(round.finalist_ids.map((id) => client.getSubmission(id)));
+    const evidenceStatuses = await Promise.all(round.finalist_ids.map((id) => client.getEvidenceStatus(roundId, id)));
+    if (round.state !== "LOCKED" || evidenceStatuses.some((status) => status.status !== "READY")) {
+      setNotice("Resolve remains disabled until every locked finalist has a READY evidence snapshot.", "error");
+      return;
+    }
     const existing = document.querySelector("[data-modal]");
     existing?.remove();
     document.body.insertAdjacentHTML("beforeend", `<div class="modal-backdrop" data-modal role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="evaluation-modal-title"><button class="modal-close" data-action="close-modal" aria-label="Close evaluation confirmation">×</button><p class="eyebrow">Begin evaluation</p><h2 id="evaluation-modal-title">Evaluate the locked finalist set?</h2><p class="modal-lede">This action asks GenLayer validators to inspect the same committed rubric and evidence. The result can be a canonical winner or an explicit inconclusive outcome.</p><div class="modal-summary"><div><span>Round</span><strong>${escapeHtml(round.title)}</strong></div><div><span>Locked finalists</span><strong>${submissions.length}</strong></div><div><span>Evaluation digest</span><code>${escapeHtml(shorten(round.evaluation_universe_digest, 16))}</code></div></div><div class="modal-callout"><span>⌁</span><p>The rubric, finalist set, and evidence commitments are already frozen. If evidence cannot be retrieved or verified, no winner will be selected.</p></div><div class="modal-actions"><button class="button button-quiet" data-action="close-modal">Cancel</button><button class="button button-primary" data-action="confirm-evaluation" data-round-id="${escapeHtml(roundId)}">Begin evaluation <span>→</span></button></div></section></div>`);
@@ -711,7 +806,7 @@ document.addEventListener("click", (event) => {
     void client.switchToConfiguredNetwork().then(async () => { wallet = await client.getWalletState(); setNotice(`Connected to ${networkLabel()}.`, "success"); }).catch((error) => setNotice(error instanceof Error ? error.message : "Network switch failed.", "error"));
   } else if (name === "contract-write" && action.dataset.method && action.dataset.roundId) {
     if (action.dataset.method === "resolve_round") void showEvaluationModal(action.dataset.roundId);
-    else void handleContractWrite(action.dataset.method, action.dataset.roundId);
+    else void handleContractWrite(action.dataset.method, action.dataset.roundId, action.dataset.submissionId, action.dataset.selected === "true");
   } else if (name === "hash-evidence") {
     void calculateEvidenceHash();
   }
@@ -732,6 +827,7 @@ document.addEventListener("submit", (event) => {
   event.preventDefault();
   if (form.dataset.form === "create-round") void handleCreateRound(form);
   if (form.dataset.form === "submit-submission") void handleSubmitSubmission(form);
+  if (form.dataset.form === "recover-evidence") void handleRecoverEvidence(form);
 });
 
 document.addEventListener("keydown", (event) => {

@@ -9,12 +9,18 @@ import os
 import tempfile
 
 from gltest.direct import loader
+from gltest.direct import sdk_loader
 from gltest.direct.vm import VMContext
 
 
 def _safe_inject_message_to_fd0(vm: VMContext) -> None:
-    from genlayer.py import calldata
-    from genlayer.py.types import Address
+    try:
+        from genlayer.py import calldata
+        from genlayer.py.types import Address
+    except ModuleNotFoundError:
+        # v0.6 runner bundles the standard library as ``genlayer`` rather
+        # than the legacy ``genlayer.py`` package used by older gltest.
+        from genlayer import Address, calldata
 
     sender_addr = vm.sender
     if isinstance(sender_addr, bytes):
@@ -65,3 +71,8 @@ def _safe_cleanup(self: VMContext) -> None:
 
 loader._inject_message_to_fd0 = _safe_inject_message_to_fd0
 VMContext._cleanup_after_deactivate = _safe_cleanup
+
+# The V2 candidate uses the current v0.6-style ``import genlayer as gl`` ABI.
+# Pin direct tests to the cached v0.6 runner instead of allowing the loader to
+# select a preview bundle by lexical version ordering.
+sdk_loader.list_cached_versions = lambda: ["v0.6.0-rc2"]

@@ -1,4 +1,4 @@
-import type { RoundState, TransactionPhase, TransactionRecord } from "./meritroundClient";
+import type { EvidenceStatus, RoundState, SelectionState, TransactionPhase, TransactionRecord } from "./meritroundClient";
 
 export const roundStateMeta: Record<RoundState, { label: string; title: string; description: string }> = {
   DRAFT: { label: "Draft", title: "Preparing this round", description: "Review the rubric, then open the round when you are ready to accept finalists." },
@@ -25,6 +25,17 @@ export const transactionPhaseMeta: Record<TransactionPhase, { label: string; sho
 export function stateLabel(state: string): string {
   return roundStateMeta[state as RoundState]?.label ?? state.replaceAll("_", " ");
 }
+
+export const selectionStateMeta: Record<SelectionState, { label: string; description: string }> = {
+  REGISTERED: { label: "Registered", description: "Registered submission; not part of the locked evaluation set." },
+  SELECTED: { label: "Selected", description: "Organizer-selected candidate; selection remains editable while the round is open." },
+  LOCKED_FINALIST: { label: "Locked finalist", description: "Included in the immutable evaluation universe." },
+};
+
+export const evidenceStatusMeta: Record<EvidenceStatus, { label: string; description: string }> = {
+  NOT_PINNED: { label: "Recovery needed", description: "The exact committed bytes are not yet authenticated on-chain." },
+  READY: { label: "Ready", description: "Exact committed bytes are snapshotted and ready for resolution." },
+};
 
 export function activityStepIndex(phase: TransactionPhase): number {
   return {

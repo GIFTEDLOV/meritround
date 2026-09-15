@@ -1,0 +1,47 @@
+{
+  "mode": "MERITROUND_V2_STUDIO_NEXT_DEPLOYMENT",
+  "network": "studio-next",
+  "rpc": "https://studio-next.genlayer.com/api",
+  "chain_id": 61997,
+  "sender": "0xCb5a845638Cbc1f95D7f8343278685682c3bA13F",
+  "source_path": "contracts/meritround_v2.py",
+  "source_sha256": "6e21cb5f1361f80f5d09d20087122d271edec6c96d7270d44f6234d3b588272b",
+  "source_bytes": 29586,
+  "fee_estimate": {
+    "distribution": {
+      "leaderTimeunitsAllocation": "100",
+      "validatorTimeunitsAllocation": "200",
+      "appealRounds": "0",
+      "executionBudgetPerRound": "25000000000000000",
+      "executionConsumed": "0",
+      "totalMessageFees": "0",
+      "rotations": [
+        "3"
+      ],
+      "maxPriceGenPerTimeUnit": "2",
+      "storageFeeMaxGasPrice": "300000000",
+      "receiptFeeMaxGasPrice": "300000000"
+    },
+    "feeValue": "100000000000010352",
+    "policy": {
+      "enabled": true,
+      "genPerTimeUnit": "1",
+      "storageUnitPrice": "250000000",
+      "receiptGasPrice": "250000000",
+      "executionBudgetFloor": "76548000000000",
+      "timeUnitOverlayBps": "1500"
+    }
+  },
+  "deployment_attempt_count": 1,
+  "rebroadcast": false,
+  "evm_tx": "0xd94e9b695c863b6843050575c9eddd893c4b10b391b2e82a358694418f1afba5",
+  "evm_receipt_status": "0x1",
+  "genlayer_transaction_id": "0xd94e9b695c863b6843050575c9eddd893c4b10b391b2e82a358694418f1afba5",
+  "final_status": "FINALIZED",
+  "genlayer_result": "MAJORITY_AGREE",
+  "execution": "FINISHED_WITH_ERROR",
+  "execution_error": "invalid_contract runner malformed",
+  "candidate_contract_address": "0x2Eb782c3cA98B0ba489D2CD4e4e0Bb4240c40073",
+  "contract_address": null,
+  "contract_readback": "NOT_FOUND"
+}

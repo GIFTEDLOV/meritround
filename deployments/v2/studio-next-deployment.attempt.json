@@ -1,0 +1,38 @@
+{
+  "network": "studio-next",
+  "rpc": "https://studio-next.genlayer.com/api",
+  "chain_id": 61997,
+  "contract_path": "contracts/meritround_v2.py",
+  "contract_sha256": "6e21cb5f1361f80f5d09d20087122d271edec6c96d7270d44f6234d3b588272b",
+  "deployer": "0xcb5a845638cbc1f95d7f8343278685682c3ba13f",
+  "deployment_command": "genlayer deploy --contract contracts/meritround_v2.py --rpc https://studio-next.genlayer.com/api",
+  "deployment_attempt_count": 1,
+  "evm_tx": "0x907b92ca93c770cbafb759ac0fa78f45a386f032ec172bd39e583132555b81ec",
+  "genlayer_tx": null,
+  "fresh_fee_estimate": {
+    "distribution": {
+      "leaderTimeunitsAllocation": "100",
+      "validatorTimeunitsAllocation": "200",
+      "appealRounds": "0",
+      "executionBudgetPerRound": "25000000000000000",
+      "executionConsumed": "0",
+      "totalMessageFees": "0",
+      "rotations": ["3"],
+      "maxPriceGenPerTimeUnit": "2",
+      "storageFeeMaxGasPrice": "300000000",
+      "receiptFeeMaxGasPrice": "300000000"
+    },
+    "feeValue": "100000000000010352",
+    "policy": {
+      "enabled": true,
+      "genPerTimeUnit": "1",
+      "storageUnitPrice": "250000000",
+      "receiptGasPrice": "250000000",
+      "executionBudgetFloor": "76548000000000",
+      "timeUnitOverlayBps": "1500"
+    }
+  },
+  "broadcast_fee_value": null,
+  "error": "Transaction reverted: FeeValueMustBeNonZero(1)",
+  "status": "execution_error"
+}

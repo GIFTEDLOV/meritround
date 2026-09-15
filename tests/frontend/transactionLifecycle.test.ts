@@ -1,7 +1,9 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
+import { localnet, studioDevnet, studionet, testnetBradbury } from "genlayer-js/chains";
 import {
   loadMeritRoundConfig,
+  computeRoundId,
+  computeSubmissionId,
   MemoryTransactionStore,
   MeritRoundClient,
   PersistentTransactionStore,
@@ -32,6 +34,8 @@ function round(state: "DRAFT" | "OPEN" | "LOCKED" | "FINALIZED" | "INCONCLUSIVE"
     rubric: "Rubric",
     state,
     submission_ids: [SUBMISSION_ID, "d".repeat(64)],
+    selected_ids: state === "DRAFT" || state === "OPEN" ? [] : [SUBMISSION_ID, "d".repeat(64)],
+    selected_count: state === "DRAFT" || state === "OPEN" ? 0 : 2,
     finalist_ids: state === "LOCKED" || state === "FINALIZED" || state === "INCONCLUSIVE" ? [SUBMISSION_ID, "d".repeat(64)] : [],
     evaluation_universe_digest: "e".repeat(64),
   };
@@ -84,6 +88,28 @@ afterEach(() => {
 });
 
 describe("MeritRound transaction lifecycle", () => {
+  it("defaults the existing app to Studio Dev", () => {
+    expect(loadMeritRoundConfig()).toMatchObject({
+      network: "studio-dev",
+      endpoint: "https://studio-dev.genlayer.com/api",
+      chainId: studioDevnet.id,
+    });
+  });
+
+  it("uses V2 IDs and excludes the transport URL from submission identity", async () => {
+    const roundId = await computeRoundId(ACCOUNT, "Title", "Description", "Rubric");
+    const first = await computeSubmissionId(roundId, ACCOUNT, "Submission", "https://one.example/evidence", "a".repeat(64));
+    const second = await computeSubmissionId(roundId, ACCOUNT, "Submission", "https://mirror.example/evidence", "a".repeat(64));
+    expect(first).toBe(second);
+    expect(roundId).toHaveLength(64);
+    expect(first).toHaveLength(64);
+  });
+
+  it("rejects unknown networks instead of silently falling back", () => {
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "hidden-localnet");
+    expect(() => loadMeritRoundConfig()).toThrow("MERITROUND_INVALID_NETWORK");
+  });
+
   it("selects the configured localnet, studionet, or Bradbury network", () => {
     vi.stubEnv("VITE_MERITROUND_NETWORK", "localnet");
     expect(loadMeritRoundConfig()).toMatchObject({
@@ -97,6 +123,13 @@ describe("MeritRound transaction lifecycle", () => {
       network: "studionet",
       endpoint: "https://studio.genlayer.com/api",
       chainId: 61999,
+    });
+
+    vi.stubEnv("VITE_MERITROUND_NETWORK", "studio-dev");
+    expect(loadMeritRoundConfig()).toMatchObject({
+      network: "studio-dev",
+      endpoint: "https://studio-dev.genlayer.com/api",
+      chainId: 61997,
     });
 
     vi.stubEnv("VITE_MERITROUND_NETWORK", "bradbury");
@@ -190,6 +223,69 @@ describe("MeritRound transaction lifecycle", () => {
     expect(result.success).toBe(true);
     expect(result.record.phase).toBe("RESOLVED");
     expect((client.readClient as any).getTransaction).toHaveBeenCalledWith({ hash: TX_ID });
+  });
+
+  it("uses Transaction Kit fresh fee estimation and submits exactly once", async () => {
+    const store = new MemoryTransactionStore();
+    const client = new MeritRoundClient(config, store);
+    (client as any).account = ACCOUNT;
+    const order: string[] = [];
+    const kit = {
+      estimate: vi.fn().mockImplementation(async () => {
+        order.push("estimate");
+        return { feeValue: 123n, gasless: false };
+      }),
+      submit: vi.fn().mockImplementation(async () => {
+        order.push("submit");
+        return { genlayerTxId: TX_ID, evmTxHash: TX_ID };
+      }),
+    };
+    (client as any).transactionKit = kit;
+
+    const operation = {
+      operationId: "kit-operation",
+      method: "open_round",
+      args: [ROUND_ID],
+      expectedState: { kind: "round-state" as const, roundId: ROUND_ID, state: "OPEN" as const },
+      roundId: ROUND_ID,
+    };
+    const result = await client.sendWriteOnce(operation);
+
+    expect(order).toEqual(["estimate", "submit"]);
+    expect(kit.estimate).toHaveBeenCalledWith(
+      { preset: "standard" },
+      expect.objectContaining({ kind: "write", method: "open_round" }),
+    );
+    expect(kit.submit).toHaveBeenCalledTimes(1);
+    expect(result.txId).toBe(TX_ID);
+    expect(result.evmTxHash).toBe(TX_ID);
+    expect(store.get("kit-operation")?.txId).toBe(TX_ID);
+  });
+
+  it("persists the captured hash when kit submission becomes ambiguous", async () => {
+    const store = new MemoryTransactionStore();
+    const client = new MeritRoundClient(config, store);
+    (client as any).account = ACCOUNT;
+    (client as any).transactionKit = {
+      estimate: vi.fn().mockResolvedValue({ feeValue: 123n, gasless: false }),
+      submit: vi.fn().mockImplementation(async () => {
+        (client as any).lastEvmTxHash = TX_ID;
+        throw new Error("RPC response interrupted after broadcast");
+      }),
+    };
+
+    const result = await client.sendWriteOnce({
+      operationId: "ambiguous-kit-operation",
+      method: "open_round",
+      args: [ROUND_ID],
+      expectedState: { kind: "round-state", roundId: ROUND_ID, state: "OPEN" },
+      roundId: ROUND_ID,
+    });
+
+    expect(result.txId).toBe(TX_ID);
+    expect(result.phase).toBe("SUBMITTED");
+    expect(result.error).toContain("same transaction ID");
+    expect(store.get("ambiguous-kit-operation")?.txId).toBe(TX_ID);
   });
 
   it("never rebroadcasts after a tracking timeout", async () => {

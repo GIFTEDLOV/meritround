@@ -1,11 +1,8 @@
 import { createClient } from "genlayer-js";
-import { localnet, studionet, testnetBradbury } from "genlayer-js/chains";
-import {
-  GenLayerClient,
-  TransactionHash,
-  TransactionHashVariant,
-  TransactionStatus,
-} from "genlayer-js/types";
+import { localnet, studioDevnet, studionet, testnetBradbury } from "genlayer-js/chains";
+import { TransactionHashVariant, TransactionStatus } from "genlayer-js/types";
+import type { GenLayerClient, GenLayerChain, TransactionHash } from "genlayer-js/types";
+import { createTransactionKit, type SubmitInput, type TransactionKit } from "@genlayer/transaction-kit";
 import { getAddress } from "viem";
 import type { Address } from "viem";
 
@@ -25,9 +22,15 @@ export interface RoundView {
   rubric: string;
   state: RoundState;
   submission_ids: string[];
+  selected_ids: string[];
+  selected_count: number;
   finalist_ids: string[];
   evaluation_universe_digest: string;
 }
+
+export type SelectionState = "REGISTERED" | "SELECTED" | "LOCKED_FINALIST";
+
+export type EvidenceStatus = "NOT_PINNED" | "READY";
 
 export interface SubmissionView {
   submission_id: string;
@@ -36,6 +39,16 @@ export interface SubmissionView {
   title: string;
   evidence_url: string;
   expected_sha256: string;
+  selection_state: SelectionState;
+}
+
+export interface EvidenceStatusView {
+  round_id: string;
+  submission_id: string;
+  status: EvidenceStatus;
+  expected_sha256: string;
+  snapshot_sha256: string;
+  source_url: string;
 }
 
 export interface ResultView {
@@ -54,7 +67,7 @@ export interface Eip1193Provider {
   removeListener?(event: string, listener: (...args: unknown[]) => void): void;
 }
 
-export type MeritRoundNetwork = "localnet" | "studionet" | "bradbury";
+export type MeritRoundNetwork = "localnet" | "studio-dev" | "studionet" | "bradbury";
 
 export interface MeritRoundConfig {
   network: MeritRoundNetwork;
@@ -65,25 +78,35 @@ export interface MeritRoundConfig {
 
 const DEFAULT_NETWORKS: Record<MeritRoundNetwork, Omit<MeritRoundConfig, "network">> = {
   localnet: { endpoint: "http://127.0.0.1:4000/api", chainId: 61127 },
+  "studio-dev": { endpoint: "https://studio-dev.genlayer.com/api", chainId: 61997 },
   studionet: { endpoint: "https://studio.genlayer.com/api", chainId: 61999 },
   bradbury: { endpoint: "https://rpc-bradbury.genlayer.com", chainId: 4221 },
 };
 
 export function loadMeritRoundConfig(): MeritRoundConfig {
-  const network: MeritRoundNetwork = import.meta.env.VITE_MERITROUND_NETWORK === "localnet"
-    ? "localnet"
-    : import.meta.env.VITE_MERITROUND_NETWORK === "bradbury"
-      ? "bradbury"
-      : "studionet";
+  const rawNetwork = import.meta.env.VITE_MERITROUND_NETWORK?.trim().toLowerCase() || "studio-dev";
+  if (rawNetwork !== "localnet" && rawNetwork !== "studio-dev" && rawNetwork !== "studionet" && rawNetwork !== "bradbury") {
+    throw new Error(`MERITROUND_INVALID_NETWORK: ${rawNetwork}`);
+  }
+  const network = rawNetwork as MeritRoundNetwork;
   const defaults = DEFAULT_NETWORKS[network];
+  const endpoint = import.meta.env.VITE_GENLAYER_ENDPOINT?.trim() || defaults.endpoint;
+  const chainId = Number(import.meta.env.VITE_GENLAYER_CHAIN_ID || defaults.chainId);
+  if (!Number.isInteger(chainId) || chainId !== defaults.chainId) {
+    throw new Error(`MERITROUND_INVALID_CHAIN_ID: expected ${defaults.chainId}`);
+  }
+  if (network !== "localnet" && !endpoint.startsWith("https://")) {
+    throw new Error("MERITROUND_INVALID_ENDPOINT: public networks require HTTPS");
+  }
   const rawAddress = import.meta.env.VITE_MERITROUND_CONTRACT_ADDRESS?.trim();
-  const contractAddress = rawAddress && /^0x[0-9a-fA-F]{40}$/.test(rawAddress)
-    ? getAddress(rawAddress)
-    : undefined;
+  if (rawAddress && !/^0x[0-9a-fA-F]{40}$/.test(rawAddress)) {
+    throw new Error("MERITROUND_INVALID_CONTRACT_ADDRESS");
+  }
+  const contractAddress = rawAddress ? getAddress(rawAddress) : undefined;
   return {
     network,
-    endpoint: import.meta.env.VITE_GENLAYER_ENDPOINT?.trim() || defaults.endpoint,
-    chainId: Number(import.meta.env.VITE_GENLAYER_CHAIN_ID || defaults.chainId),
+    endpoint,
+    chainId,
     ...(contractAddress ? { contractAddress } : {}),
   };
 }
@@ -132,6 +155,9 @@ export interface TransactionExpectedState {
   kind:
     | "round-created"
     | "round-state"
+    | "round-selection"
+    | "round-locked"
+    | "evidence-ready"
     | "submission-registered"
     | "round-result"
     | "round-terminal";
@@ -140,6 +166,8 @@ export interface TransactionExpectedState {
   state?: RoundState;
   outcome?: "WINNER" | "INCONCLUSIVE";
   states?: RoundState[];
+  selected?: boolean;
+  finalistIds?: string[];
 }
 
 export type TransactionPhase =
@@ -157,6 +185,7 @@ export type TransactionPhase =
 export interface TransactionRecord {
   operationId: string;
   txId: TransactionHash;
+  evmTxHash?: TransactionHash;
   network: MeritRoundNetwork;
   chainId: number;
   contractAddress: Address;
@@ -182,7 +211,7 @@ export interface TransactionStore {
   upsert(record: TransactionRecord): void;
 }
 
-const STORAGE_KEY = "meritround:transactions:v1";
+const STORAGE_KEY = "meritround:transactions:v2";
 
 export class MemoryTransactionStore implements TransactionStore {
   private readonly records = new Map<string, TransactionRecord>();
@@ -245,7 +274,7 @@ function isTransactionRecord(value: unknown): value is TransactionRecord {
     typeof record.operationId === "string" &&
     typeof record.txId === "string" &&
     /^0x[0-9a-fA-F]+$/.test(record.txId) &&
-    (record.network === "localnet" || record.network === "studionet" || record.network === "bradbury") &&
+    (record.network === "localnet" || record.network === "studio-dev" || record.network === "studionet" || record.network === "bradbury") &&
     typeof record.chainId === "number" &&
     typeof record.contractAddress === "string" &&
     typeof record.method === "string" &&
@@ -298,7 +327,7 @@ export async function computeRoundId(
 ): Promise<string> {
   return sha256Hex(
     asciiJson([
-      "MERITROUND_ROUND_V1",
+      "MERITROUND_ROUND_V2",
       getAddress(organizer),
       title,
       description,
@@ -311,16 +340,15 @@ export async function computeSubmissionId(
   roundId: string,
   submitter: Address,
   title: string,
-  evidenceUrl: string,
+  _evidenceUrl: string,
   expectedSha256: string,
 ): Promise<string> {
   return sha256Hex(
     asciiJson([
-      "MERITROUND_SUBMISSION_V1",
+      "MERITROUND_SUBMISSION_V2",
       roundId,
       getAddress(submitter),
       title,
-      evidenceUrl,
       expectedSha256,
     ]),
   );
@@ -387,6 +415,13 @@ function phaseFor(statusName: string): TransactionPhase {
   return "WAITING_FOR_FINALITY";
 }
 
+function phaseForKitStatus(status: "submitted" | "pending" | "processing" | "decided" | "finalized"): TransactionPhase {
+  if (status === "submitted") return "SUBMITTED";
+  if (status === "pending" || status === "processing") return "QUEUED";
+  if (status === "decided") return "DECISION_AVAILABLE";
+  return "WAITING_FOR_FINALITY";
+}
+
 interface ContractClientSurface {
   readContract(args: Record<string, unknown>): Promise<unknown>;
   writeContract(args: Record<string, unknown>): Promise<TransactionHash>;
@@ -418,8 +453,10 @@ export class MeritRoundClient {
   readonly config: MeritRoundConfig;
   readonly readClient: GenLayerClient<any>;
   private writeClient?: GenLayerClient<any>;
+  private transactionKit?: TransactionKit;
   private provider?: Eip1193Provider;
   private account?: Address;
+  private lastEvmTxHash?: TransactionHash;
   readonly transactions: TransactionStore;
 
   constructor(
@@ -445,8 +482,24 @@ export class MeritRoundClient {
 
   private chain() {
     if (this.config.network === "localnet") return localnet;
+    if (this.config.network === "studio-dev") return studioDevnet;
     if (this.config.network === "bradbury") return testnetBradbury;
     return studionet;
+  }
+
+  private kitChain(): GenLayerChain {
+    const chain = this.chain();
+    return {
+      ...chain,
+      name: this.config.network === "studio-dev" ? "GenLayer Studio Dev" : chain.name,
+      rpcUrls: {
+        ...chain.rpcUrls,
+        default: {
+          ...chain.rpcUrls.default,
+          http: [this.config.endpoint],
+        },
+      },
+    } as GenLayerChain;
   }
 
   private buildClient(account?: Address, provider?: Eip1193Provider): GenLayerClient<any> {
@@ -484,6 +537,10 @@ export class MeritRoundClient {
 
   async getSubmission(submissionId: string): Promise<SubmissionView> {
     return (await this.read("get_submission", [submissionId])) as unknown as SubmissionView;
+  }
+
+  async getEvidenceStatus(roundId: string, submissionId: string): Promise<EvidenceStatusView> {
+    return (await this.read("get_evidence_status", [roundId, submissionId])) as unknown as EvidenceStatusView;
   }
 
   async getResult(roundId: string): Promise<ResultView> {
@@ -527,7 +584,26 @@ export class MeritRoundClient {
     if (chainId !== this.config.chainId) {
       throw new WalletError("WRONG_NETWORK", `Switch to ${this.config.network} (chain ${this.config.chainId}) to continue.`);
     }
-    this.writeClient = this.buildClient(this.account, provider);
+    let lastEvmTxHash: TransactionHash | undefined;
+    const kitProvider: Eip1193Provider = {
+      request: async (args) => {
+        const result = await provider.request(args);
+        if (
+          args.method === "eth_sendTransaction" &&
+          typeof result === "string" &&
+          /^0x[0-9a-fA-F]+$/.test(result)
+        ) {
+          lastEvmTxHash = result as TransactionHash;
+          this.lastEvmTxHash = lastEvmTxHash;
+        }
+        return result;
+      },
+    };
+    this.transactionKit = createTransactionKit({
+      chain: this.kitChain(),
+      provider: kitProvider,
+      account: this.account,
+    });
     return { status: "connected", address: this.account, chainId };
   }
 
@@ -559,6 +635,13 @@ export class MeritRoundClient {
     return this.writeClient as unknown as ContractClientSurface;
   }
 
+  private requireTransactionKit(): TransactionKit {
+    if (!this.transactionKit || !this.account) {
+      throw new WalletError("WALLET_NOT_READY", "Connect a wallet on the configured network before writing.");
+    }
+    return this.transactionKit;
+  }
+
   async sendWriteOnce(operation: WriteOperation): Promise<TransactionRecord> {
     const existing = this.transactions.get(operation.operationId);
     if (existing) {
@@ -572,26 +655,18 @@ export class MeritRoundClient {
       return existing;
     }
 
-    const client = this.requireWritableClient();
     // Compute optional metadata before broadcasting. Once a protocol ID exists,
     // every subsequent failure must remain recoverable by that exact ID.
     const argsDigest = await sha256Hex(stableSerialize(operation.args));
     const startedAt = new Date().toISOString();
     let txId: TransactionHash;
-    try {
-      txId = await client.writeContract({
-        address: this.contractAddress(),
-        functionName: operation.method,
-        args: operation.args,
-        value: 0n,
-      });
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : "The wallet or network rejected the transaction.");
-    }
+    let evmTxHash: TransactionHash | undefined;
+    this.lastEvmTxHash = undefined;
 
-    const record: TransactionRecord = {
+    const makeRecord = (id: TransactionHash, error?: string): TransactionRecord => ({
       operationId: operation.operationId,
-      txId,
+      txId: id,
+      ...(evmTxHash ? { evmTxHash } : {}),
       network: this.config.network,
       chainId: this.config.chainId,
       contractAddress: this.contractAddress(),
@@ -604,7 +679,53 @@ export class MeritRoundClient {
       updatedAt: startedAt,
       phase: "SUBMITTED",
       terminal: false,
-    };
+      ...(error ? { error } : {}),
+    });
+
+    try {
+      if (this.transactionKit) {
+        const tx: SubmitInput = {
+          kind: "write",
+          address: this.contractAddress(),
+          method: operation.method,
+          args: operation.args,
+        };
+        // Transaction Kit obtains a fresh live fee quote immediately before
+        // the single submit and carries that quote into the SDK submission.
+        const quote = await this.requireTransactionKit().estimate({ preset: "standard" }, tx);
+        if (!quote.gasless && quote.feeValue <= 0n) {
+          throw new Error("GENLAYER_FEE_ESTIMATE_ZERO: refusing a zero-value write");
+        }
+        const submitted = await this.requireTransactionKit().submit(quote, tx);
+        txId = submitted.genlayerTxId as TransactionHash;
+        evmTxHash = (submitted.evmTxHash as TransactionHash | undefined) ?? this.lastEvmTxHash;
+      } else {
+        // Kept as a test-only seam for existing unit doubles. Browser writes
+        // always initialize transactionKit during connectWallet().
+        const client = this.requireWritableClient();
+        txId = await client.writeContract({
+          address: this.contractAddress(),
+          functionName: operation.method,
+          args: operation.args,
+          value: 0n,
+        });
+      }
+    } catch (error) {
+      // If the provider returned an EVM hash but the kit response was
+      // interrupted, persist that same hash and let recovery reconcile it.
+      if (this.lastEvmTxHash) {
+        evmTxHash = this.lastEvmTxHash;
+        const interrupted = makeRecord(
+          this.lastEvmTxHash,
+          "Submission response was interrupted; reconciling the same transaction ID.",
+        );
+        this.transactions.upsert(interrupted);
+        return interrupted;
+      }
+      throw new Error(error instanceof Error ? error.message : "The wallet or network rejected the transaction.");
+    }
+
+    const record = makeRecord(txId);
 
     // Persist the exact ID before any polling or retry. Refresh recovery reconciles this record.
     this.transactions.upsert(record);
@@ -620,6 +741,22 @@ export class MeritRoundClient {
       case "round-state":
         if (!expected.roundId || !expected.state) return false;
         return (await this.getRound(expected.roundId)).state === expected.state;
+      case "round-selection":
+        if (!expected.roundId || !expected.submissionId || expected.selected === undefined) return false;
+        {
+          const selected = (await this.getRound(expected.roundId)).selected_ids;
+          return selected.includes(expected.submissionId) === expected.selected;
+        }
+      case "round-locked":
+        if (!expected.roundId || !expected.finalistIds) return false;
+        {
+          const finalists = (await this.getRound(expected.roundId)).finalist_ids;
+          return finalists.length === expected.finalistIds.length &&
+            finalists.every((id, index) => id === expected.finalistIds?.[index]);
+        }
+      case "evidence-ready":
+        if (!expected.roundId || !expected.submissionId) return false;
+        return (await this.getEvidenceStatus(expected.roundId, expected.submissionId)).status === "READY";
       case "submission-registered":
         if (!expected.submissionId) return false;
         await this.getSubmission(expected.submissionId);
@@ -698,6 +835,15 @@ export class MeritRoundClient {
   }
 
   async waitForFinality(record: TransactionRecord): Promise<ReconcileResult> {
+    if (this.transactionKit) {
+      try {
+        await this.transactionKit.track(record.txId as `0x${string}`, () => undefined, { until: "finalized" });
+      } catch {
+        // Reconcile below preserves the same record as interrupted; it never
+        // creates a replacement transaction after a hash exists.
+      }
+      return this.reconcile(record);
+    }
     await this.readClient.waitForTransactionReceipt({
       hash: record.txId,
       status: TransactionStatus.FINALIZED,
@@ -725,6 +871,41 @@ export class MeritRoundClient {
     onUpdate: (record: TransactionRecord) => void,
     options: { intervalMs?: number; attempts?: number } = {},
   ): Promise<TransactionRecord> {
+    if (this.transactionKit) {
+      let current = record;
+      try {
+        await this.transactionKit.track(
+          record.txId as `0x${string}`,
+          (status) => {
+            current = {
+              ...current,
+              updatedAt: new Date().toISOString(),
+              phase: phaseForKitStatus(status.phase),
+              ...(status.statusName ? { latestStatus: status.statusName } : {}),
+              ...(status.executionResultName ? { latestExecution: status.executionResultName } : {}),
+              ...(status.queuePosition !== undefined ? { queuePosition: status.queuePosition } : {}),
+            };
+            this.transactions.upsert(current);
+            onUpdate(current);
+          },
+          { until: "finalized" },
+        );
+        const reconciled = await this.reconcile(current);
+        onUpdate(reconciled.record);
+        return reconciled.record;
+      } catch (error) {
+        const interrupted: TransactionRecord = {
+          ...current,
+          phase: "TRACKING_INTERRUPTED",
+          updatedAt: new Date().toISOString(),
+          error: error instanceof Error ? error.message : "Transaction tracking interrupted",
+        };
+        this.transactions.upsert(interrupted);
+        onUpdate(interrupted);
+        return interrupted;
+      }
+    }
+
     const intervalMs = options.intervalMs ?? 3_000;
     const attempts = options.attempts ?? 40;
     let current = record;

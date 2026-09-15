@@ -1,4 +1,7 @@
-# MeritRound Hour 1 Architecture
+# MeritRound Hour 1 Architecture — HISTORICAL V1 RECORD
+
+> This document preserves the original V1 architecture audit. The current V2
+> contract and remediation requirements are authoritative in `docs/v2-final/`.
 
 ## Parties and trust problem
 
@@ -14,7 +17,7 @@ The model may reason internally, but only the strict two-field canonical result 
 
 ## Evidence model and authentication boundary
 
-The V1 pipeline is:
+The historical V1 pipeline was:
 
 ```text
 HTTPS policy -> exact byte fetch -> SHA-256 check -> bounded JSON schema
@@ -51,7 +54,7 @@ DRAFT --organizer--> OPEN --organizer--> LOCKED --resolve--> EVALUATING
                                                             +----------> INCONCLUSIVE
 ```
 
-All submissions registered in `OPEN` become finalists when the organizer locks the round. Locking freezes the rubric, finalist set, evidence URLs, evidence commitments, and evaluation-universe digest. `EVALUATING` is an internal transition in the resolving write; failed evaluation does not create a result and leaves the committed round safe for retry. `FINALIZED` and `INCONCLUSIVE` are terminal and immutable.
+In historical V1, all submissions registered in `OPEN` became finalists when the organizer locked the round. V2 replaces that behavior with explicit organizer selection and a separate immutable locked finalist array. `EVALUATING` is an internal transition in the resolving write; failed evaluation does not create a result and leaves the committed round safe for retry. `FINALIZED` and `INCONCLUSIVE` are terminal and immutable.
 
 ## Deterministic invariants
 

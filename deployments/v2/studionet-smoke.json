@@ -1,0 +1,23 @@
+{
+  "mode": "V2_MINIMAL_SMOKE",
+  "network": "studionet",
+  "cli_network": "studionet",
+  "rpc": "https://studio.genlayer.com/api",
+  "chain_id": 61999,
+  "toolchain": {
+    "genlayer_cli": "0.39.2",
+    "genlayer_js": "1.1.8"
+  },
+  "source_path": "contracts/hello_smoke.py",
+  "source_sha256": "cd7cbeef1dd21f5c9e202680e08ce29b726d0f5aece5f0b0cc75672236eba083",
+  "source_bytes": 253,
+  "broadcast_count": 1,
+  "transaction_id": "0x019dc4540751face513149daf9a65b4e903be110dc99b19aae8c8dd760efe937",
+  "contract_address": "0x1813Bd4241ceD68F0932d4020FcF8b1Ec1A27a81",
+  "status": "FINALIZED",
+  "execution": "ERROR",
+  "execution_payload": "invalid_contract",
+  "readback": "NOT_FOUND",
+  "passed": false,
+  "rebroadcast": false
+}

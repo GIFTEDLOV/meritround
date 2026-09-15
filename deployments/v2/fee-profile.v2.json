@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "network": "localnet",
+  "measuredAt": "2026-09-13T23:39:42Z",
+  "chainId": 61999,
+  "deploy": {
+    "leaderTimeunitsAllocation": "150",
+    "validatorTimeunitsAllocation": "300",
+    "executionBudgetPerRound": "117942000000000",
+    "totalMessageFees": "0",
+    "rotationsPerRound": "3"
+  },
+  "methods": {}
+}

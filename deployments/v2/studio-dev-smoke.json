@@ -1,0 +1,33 @@
+{
+  "mode": "V2_MINIMAL_V06_SMOKE",
+  "network": "studio-dev",
+  "rpc": "https://studio-dev.genlayer.com/api",
+  "chain_id": 61997,
+  "toolchain": {
+    "genlayer_cli": "0.40.0-rc.3",
+    "genlayer_js": "2.0.0-rc.1",
+    "genlayer_py": "0.19.0rc2",
+    "genlayer_test": "0.30.0rc2",
+    "genvm_linter": "0.11.0"
+  },
+  "source_path": "contracts/hello_smoke.py",
+  "source_sha256": "cd7cbeef1dd21f5c9e202680e08ce29b726d0f5aece5f0b0cc75672236eba083",
+  "source_bytes": 253,
+  "broadcast_count": 1,
+  "transaction_id": "0xb9e048aba6cbc13da2fc502b4935c32e5e369e996fc857a2c40e034b755bf7ed",
+  "status": "FINALIZED",
+  "status_numeric": 7,
+  "result_numeric": 5,
+  "result_name": "NO_MAJORITY",
+  "consensus_data": null,
+  "execution_result": null,
+  "execution_result_observation": "UNKNOWN",
+  "lifecycle": {
+    "state": "finalized",
+    "outcome": "undetermined"
+  },
+  "contract_address": null,
+  "hello_readback": "NOT_ATTEMPTED_NO_CONTRACT",
+  "passed": false,
+  "rebroadcast": false
+}
