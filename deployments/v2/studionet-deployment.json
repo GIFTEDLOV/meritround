@@ -30,5 +30,15 @@
     "evidence_mode": "PINNED_EXACT_BYTES_ONLY",
     "max_evidence_bytes": 32768,
     "resolve_web_fetches": 0
+  },
+  "test_status": {
+    "contract_tests": "25/25 PASS",
+    "direct_suite": "58/58 PASS",
+    "reviewer_regression": "5/5 PASS",
+    "adversarial_mutation": "11/11 killed",
+    "frontend_tests": "24/24 PASS",
+    "genvm_lint": "PASS",
+    "typecheck": "PASS",
+    "production_build": "PASS"
   }
 }

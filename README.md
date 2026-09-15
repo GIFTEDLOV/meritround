@@ -1,44 +1,84 @@
 # MeritRound
 
-MeritRound is a GenLayer Project for rubric-based competitions, community
+MeritRound is a GenLayer Intelligent Contract for rubric-based competitions,
 awards, accelerators, hackathons, design challenges, and open calls.
 
-## Release status
+## Current production release
 
-The public Bradbury deployment is historical V1. It remains preserved at
-`contracts/meritround.py` and is not the V2 release candidate. The audited V2
-candidate is `contracts/meritround_v2.py` on branch `v2-steward-liveness`.
+The finished V2 reviewer-fix release is deployed on GenLayer Studionet and is
+connected to the public frontend:
 
-V2 has not been published to GitHub or deployed to Vercel. Its target is Studio
-Dev at chain `61997` and `https://studio-dev.genlayer.com/api`. The failed Studio
-Dev deployment attempt is preserved in
-`deployments/v2/studio-dev-deployment.pending.json`; it was rejected before a
-GenLayer transaction because the deployment fee options were omitted. See
-`docs/v2-final/` for the audit, invariants, test matrix, and freeze record.
+- Live app: <https://meritround.vercel.app>
+- Network: GenLayer Studionet
+- RPC: `https://studio.genlayer.com/api`
+- Chain ID: `61999`
+- Contract: `0x815deBdB251FAC07c6eaD1F7BC65D26116ED5ca6`
+- Deployment transaction: `0x174f6479531a45d7573c059c3d8a6198d047f5419976c244711ef0c507d3bae7`
+- Contract source: `contracts/meritround_v2.py`
+- Contract SHA-256: `96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af`
+- Runner: `py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6`
 
-Historical V1 proof: [evidence/bradbury/bradbury-proof.json](evidence/bradbury/bradbury-proof.json).
+Stable release family:
 
-## Product
+- GenLayer CLI `0.39.2`
+- `genlayer-js` `1.1.8`
+- `genlayer-py` `0.18.0`
+- `genlayer-test` `0.29.2`
 
-MeritRound lets an organizer define a rubric, collect finalist submissions,
-commit exact evidence references, lock the evaluation universe, and request a
-validator-backed decision. The Intelligent Contract owns the authoritative
-result and terminal round state.
+The structured deployment record is
+[`deployments/v2/studionet-deployment.json`](deployments/v2/studionet-deployment.json).
+The complete live proof is
+[`evidence/studionet-v2/live-reviewer-proof.json`](evidence/studionet-v2/live-reviewer-proof.json).
 
-## Problem
+## Reviewer fix — live Studionet proof
 
-In a conventional selection process, participants must trust the organizer,
-the hosting backend, one AI provider, or an opaque administrator to choose the
-winner. MeritRound reduces that trust requirement by making the rubric,
-finalists, and evidence commitments explicit before evaluation.
+The current flow makes the evaluation universe explicit and immutable:
 
-## Why GenLayer
+1. The organizer defines the round and rubric.
+2. Submissions are registered and finalists are explicitly selected.
+3. The selected finalist universe is locked before judging.
+4. Each locked finalist’s evidence is authenticated against its committed
+   SHA-256 and stored as a write-once snapshot.
+5. `resolve_round` reads only those authenticated snapshots.
+6. Resolution performs zero live evidence web fetches.
+7. Unselected submissions are outside the locked judging universe and cannot
+   influence the result.
+8. An unavailable original evidence URL cannot stall resolution after an exact
+   authenticated snapshot has been recovered and stored.
+9. Validators independently judge the same locked rubric and evidence universe.
+10. Only the bounded canonical `{outcome, submission_id}` result can affect
+    contract state.
 
-GenLayer validators independently inspect the same locked rubric and committed
-evidence. They independently produce a strictly validated canonical decision;
-only the equivalent two-field result can affect contract state.
+The live proof used a controlled round with these finalized transactions:
 
-Authoritative results are limited to:
+- Finalist A selection: `0x3c92ecfbbac282c1cef8acbb171ff0016b749fb6bca2c7477884146268fb2859`
+- Finalist B selection: `0x1b856a8656107790c872cab6ac13a80af5852710aa01e749b75ab8b2d3d066f7`
+- Finalist lock: `0x8ec97a2d8a24a8eb2172a315e600f9ab18aed685e5a518c3d256ce618d041667`
+- Stored evidence A: `0x95adc4b19ac5cea5c12f9079b0c530b1a8465817cf2eb60271fff7ae564774d9`
+- Stored evidence B: `0x52a1bbd35deb07454e0273049966a961fd40cbf69161227f9906706c3818b563`
+- Unselected/adversarial attempt: `0x0658969590f7ded8d20160bd84dbdcdd9d664b2df9880ca74d8dc22596bca1de`
+- Resolution: `0xc2a0ff837ecbc9e075100fde1fb08653fa1118de9449d0332c6b80743b0ae0e8`
+
+Readback verified that finalist selection was explicit, the finalist set was
+locked, both evidence snapshots were `READY` with matching SHA-256 values, and
+the unselected post-lock attempt failed closed with
+`BUSINESS_ILLEGAL_STATE_FINALIST`. The original URL for finalist A was
+unavailable; recovery from an immutable exact-byte mirror succeeded. Resolution
+returned the validator-backed terminal `INCONCLUSIVE` result and
+`get_resolution_web_fetch_count` returned `0`.
+
+## How MeritRound works
+
+```text
+DRAFT -> OPEN -> LOCKED -> EVALUATING -> FINALIZED
+                                      \-> INCONCLUSIVE
+```
+
+The organizer creates a bounded round, opens it, registers submissions, selects
+two to sixteen finalists, and locks that exact set. Every locked finalist must
+have a stored authenticated evidence snapshot before resolution. Validators
+independently evaluate the locked rubric and evidence; only the strict result
+schema below is authoritative:
 
 ```json
 {"outcome":"WINNER","submission_id":"<locked-submission-id>"}
@@ -50,190 +90,88 @@ or:
 {"outcome":"INCONCLUSIVE","submission_id":""}
 ```
 
-Reasoning, scores, rankings, confidence, payouts, addresses, and prose are not
-authoritative.
+Evidence is untrusted content. Instructions, fake verdicts, JSON, or prompts
+inside evidence remain data and are delimited from evaluator instructions.
+Resolution does not refetch evidence; it validates the stored authenticated
+bytes and performs the GenLayer validator judgment over that fixed universe.
 
-## How MeritRound works
+## Architecture and paths
 
-```text
-DRAFT -> OPEN -> LOCKED -> EVALUATING -> FINALIZED
-                                      \-> INCONCLUSIVE
-```
+- `contracts/meritround_v2.py` is the active production contract.
+- `contracts/meritround.py` is preserved historical V1 source only.
+- `frontend/` is the typed Vite application with real contract reads,
+  wallet-gated writes, lifecycle tracking, and transaction recovery.
+- `deploy/` contains the stable deployment helper and readback checks.
+- `tests/direct/` contains the direct contract suite.
+- `tests/frontend/` contains frontend transaction and UI model tests.
+- `deployments/v2/` and `evidence/studionet-v2/` contain current structured
+  deployment and reviewer-proof records.
 
-1. The organizer creates a round with a bounded title, description, and rubric.
-2. The organizer opens the round; participants register submissions with exact
-   HTTPS evidence commitments.
-3. The organizer explicitly selects finalists, then locks the exact set.
-4. Each locked finalist gets an authenticated snapshot by pinning the original
-   URL or recovering an exact-byte HTTPS mirror.
-5. `resolve_round` reads only stored snapshots, evaluates the locked universe,
-   and requires validator agreement on the canonical result.
-6. A valid winner finalizes the round. A valid inconclusive result stores an
-   explicit terminal no-winner outcome.
+## Verified quality status
 
-## Architecture
-
-- `contracts/meritround.py` is the preserved historical V1 contract.
-- `contracts/meritround_v2.py` is the audited V2 candidate and the only source
-  allowed by the V2 deployment helper.
-- `frontend/` is a typed Vite application with real reads, wallet-gated
-  writes, lifecycle progress, and persistent browser transaction recovery.
-- `deploy/` contains the deployment helper for finality, execution checks, and
-  `contract_info()` readback.
-- `tests/direct/` contains Direct Mode contract tests.
-- `tests/frontend/` contains transaction, wallet, persistence, recovery, and UI
-  model tests.
-- `evidence/` contains historical demonstration fixtures and proof records;
-  they are not V2 live proof.
-- `docs/architecture.md` describes the trust model and evidence boundary.
-- `docs/development.md` records development deployments and lifecycle evidence.
+- Contract tests: **25/25 PASS**
+- Direct suite: **58/58 PASS**
+- Reviewer regression tests: **5/5 PASS**
+- Adversarial/mutation tests: **11/11 killed**
+- Frontend tests: **24/24 PASS**
+- GenVM lint: **PASS**
+- Typecheck: **PASS**
+- Production build: **PASS**
 
 ## Use
 
-Copy `.env.example` to `.env`, verify the configured public contract address and
-network, then run:
+Copy `.env.example` to `.env`, verify the public contract address, then run:
 
 ```powershell
 npm install
 npm run dev
 ```
 
-The application provides:
+The application provides the product overview, contract-backed round browser,
+rubric-first round creation, submission registration, finalist/evidence views,
+result surfaces, and persistent transaction activity.
 
-- `/` — product explanation and launch CTA;
-- `/app` — contract-backed overview;
-- `/app/rounds` — real round directory and filters;
-- `/app/rounds/new` — rubric-first round creation;
-- `/app/rounds/:roundId` — round, finalists, evaluation, and result state;
-- `/app/rounds/:roundId/submit` — submission registration and evidence commitment;
-- `/app/activity` — persisted transaction lifecycle history.
-
-State-changing actions follow one lifecycle:
+Every state-changing action follows:
 
 ```text
 precondition read -> one broadcast -> persist tx ID -> reconcile same ID
--> finality -> execution check -> LATEST_FINAL readback -> expected-state check
+-> finality -> execution check -> expected-state readback
 ```
 
-Refreshes, polling interruptions, and RPC ambiguity never trigger a blind
-rebroadcast after a transaction ID exists. Browser records are scoped to the
-configured network, chain ID, and contract address.
+Once a transaction ID exists, refreshes, polling interruptions, and RPC
+ambiguity never trigger a blind rebroadcast.
 
-## Historical V1 Bradbury proof
+## Historical evidence
 
-The complete historical V1 round lifecycle was proven on Bradbury for round
-`1f52baf10c386c529bf01bec4c2706f30851a55d39f5c98cb7ec0d63318faff7`:
-
-```text
-create -> open -> register A -> register B -> lock -> resolve
--> WINNER -> FINALIZED -> SUCCESS -> LATEST_FINAL readback
-```
-
-Deployment, `lock_round`, and `resolve_round` each reached `FINALIZED` with
-`FINISHED_WITH_RETURN` execution, `AGREE` consensus, and five `AGREE`
-validator receipts. The final round state is `FINALIZED`; the canonical result
-is `WINNER` for Finalist A, submission
-`f15e63db478c6d6bf637fbea929b7d3172a61770938fefa375ed525201af09c9`.
-The `LATEST_FINAL` readback matched the stored result. Consensus here is a
-decision mechanism over the committed evidence, not a claim that validator
-consensus authenticates arbitrary real-world claims.
-
-The complete deployment and lifecycle record is
-[evidence/bradbury/bradbury-proof.json](evidence/bradbury/bradbury-proof.json).
-
-### Historical development evidence — Studionet
-
-The following is preserved historical development evidence and is not the
-current production deployment:
-
-- Network: Studionet
-- RPC: `https://studio.genlayer.com/api`
-- Chain ID: `61999`
-- Contract: `0x2d96cE244D5C6DBBC4FBe37f940eC95f017bAf62`
-
-A complete new-round lifecycle was proven with exact stable HTTPS evidence:
-
-```text
-create -> open -> register A -> register B -> lock -> resolve
--> WINNER -> FINALIZED -> SUCCESS -> LATEST_FINAL readback
-```
-
-The winner was submission
-`6d5c7134691db21489a2c35b49b6a872900352b1b3cdaf2eeabf4bcfca7a2dd7`.
-The resolve receipt was `MAJORITY_AGREE`: leader execution `SUCCESS`, `3 AGREE`,
-and `2 IDLE after quorum`, with no disagreement. It was not a unanimous 5/5
-vote. The finalized round and winner were confirmed by readback.
-
-The complete transaction and evidence record is
-[evidence/studionet/hour4-proof.json](evidence/studionet/hour4-proof.json).
-The earlier evidence-availability failure remains documented separately and
-was not overwritten or retried.
-
-### V2 local quality status
-
-The audited V2 candidate currently has 25/25 direct contract tests passing,
-21/21 frontend tests passing, frontend and deployment typechecks passing, a
-production build passing, GenVM lint passing, and 11/11 critical mutations
-killed. The V1 direct suite is historical and is not a V2 gate: it targets the
-legacy ABI and intentionally tests the superseded automatic-finalist and
-resolve-time-fetch behavior. The authoritative V2 results are maintained in
-`docs/v2-final/TEST_MATRIX.md`.
-
-## Security and trust model
-
-Evidence is untrusted content. The V2 contract requires HTTPS, bounded URLs and
-content, exact SHA-256 equality over fetched bytes, a bounded semantic schema,
-and strict result parsing. Evidence is placed in clearly delimited prompt
-sections; instructions or fake verdicts inside evidence are content, not
-evaluator instructions. Resolution performs no live evidence fetches: it uses
-only authenticated, write-once snapshots.
-
-Validators independently fetch and validate the same committed artifacts. A
-winner must belong to the locked finalist set. `INCONCLUSIVE` must contain an
-empty submission ID. Evidence, model, consensus, and network failures do not
-become ordinary business winners.
-
-The evidence boundary is important: MeritRound proves semantic evaluation
-against exact committed evidence bytes. It does not independently prove the
-real-world truth of claims inside arbitrary contestant evidence unless the
-competition's evidence policy separately establishes that truth.
+Bradbury and the earlier Studionet deployment are historical provenance only;
+neither is the current production deployment. The historical records remain
+preserved in `evidence/bradbury/`, `evidence/studionet/`, `deployments/`, and
+`docs/v2-final/`. In particular, the old Bradbury contract and the failed
+Studio Next/preview attempts are not the active V2 contract and do not replace
+the verified Studionet address above.
 
 ## Limitations
 
-- Historical V1 is deployed on Bradbury; V2 publication and live deployment are
-  still awaiting authorization.
 - The application uses browser wallet identity; it does not provide email
   authentication or centralized accounts.
 - V2 does not include tokenomics, payouts, governance, reputation, appeals,
   subscriptions, chat, or an administrator winner override.
 - Immutable evidence hosting and source-policy decisions remain part of the
-  competition's operational responsibility.
+  competition’s operational responsibility.
 - No external security audit is claimed.
 
 ## Developer details
 
-Install dependencies with the lockfile and run the available checks:
-
 ```powershell
 python -m pip install -r requirements.txt
-python -m pytest -q tests/direct/test_meritround_v2.py
-python scripts/v2_mutation_runner.py
+$env:GENVM_VERSION = 'v0.3.0-rc7'
+python -m pytest tests/direct
 npm run test:frontend
 npm run typecheck:frontend
 npm run typecheck:deploy
 npm run build
-$env:PYTHONUTF8 = '1'
-& "$env:LOCALAPPDATA\Python\pythoncore-3.14-64\Scripts\genvm-lint.exe" contracts/meritround_v2.py
+genvm-lint check contracts/meritround_v2.py
 ```
-
-The application uses `genlayer-js` `2.0.0-rc.1` and
-`@genlayer/transaction-kit` `0.1.0-rc.2`. MeritRound is a vanilla Vite/TypeScript
-frontend, so the React adapter is not applicable. The repository declares
-`genlayer-test` `0.29.2`; the current machine has GenLayer CLI `0.40.0-rc.3`,
-`genlayer-test` `0.30.0rc2`, `genlayer-py` `0.19.0rc2`, and `genvm-lint`
-`0.11.0`. V2 direct tests are pinned to the cached v0.6 runner and the
-deployment source is SHA-checked against the frozen manifest; live deployment
-tool compatibility must be recorded by the network gate.
 
 MeritRound is the only product in this repository. No standalone Intelligent
 Contract or unrelated contribution belongs here.

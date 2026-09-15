@@ -3,6 +3,23 @@
 > This document preserves the original V1 architecture audit. The current V2
 > contract and remediation requirements are authoritative in `docs/v2-final/`.
 
+## Current V2 production architecture
+
+The active production source is `contracts/meritround_v2.py`, deployed on
+GenLayer Studionet (chain `61999`, RPC
+`https://studio.genlayer.com/api`) at
+`0x815deBdB251FAC07c6eaD1F7BC65D26116ED5ca6`. The deployed source SHA-256 is
+`96f907a7ba7ff6e984daef175a2b1e749b85a71718a8d237d5cc02ad5e0a75af`.
+
+V2 separates evidence capture from resolution. The organizer explicitly
+selects finalists, locks the finalist universe, and stores an authenticated
+exact-byte evidence snapshot for every locked finalist before resolution.
+`resolve_round` validates and evaluates those stored snapshots only; it makes
+zero evidence web requests. Validators independently judge the same locked
+rubric and snapshot universe, and only the bounded canonical result can be
+written to contract state. The historical V1 material below describes the
+superseded fetch-at-resolution design and is retained for provenance.
+
 ## Parties and trust problem
 
 The organizer defines a round, rubric, and finalist submissions. Submitters provide evidence references and exact SHA-256 commitments. GenLayer validators independently inspect the same locked rubric and committed finalist evidence. The contract is the authority for admissibility, consensus, and the terminal result.
@@ -70,9 +87,15 @@ In historical V1, all submissions registered in `OPEN` became finalists when the
 - Any evidence/model/consensus failure raises a stable error domain and cannot write a result.
 - The result record is written once and carries the locked evaluation-universe digest.
 
-## Model authority and consensus pattern
+## Historical V1 model authority and consensus pattern
 
-The installed GenLayer runtime exposes `gl.nondet.web.get`, `gl.nondet.exec_prompt`, and `gl.vm.run_nondet`. MeritRound uses `gl.vm.run_nondet` with a leader function and a validator function. Both fetch and validate every locked evidence document and independently produce a canonical two-field JSON result. The validator requires exact equality of the canonical strings. This is intentionally stricter than NLP equivalence for the winner ID and does not make model prose authoritative.
+The historical V1 runtime exposed `gl.nondet.web.get`, `gl.nondet.exec_prompt`,
+and `gl.vm.run_nondet`. That V1 path fetched evidence during resolution. The
+current V2 path retains validator-backed canonical judgment but supplies the
+leader and validators with authenticated snapshots already stored on-chain.
+The validator requires exact equality of the canonical strings. This is
+intentionally stricter than NLP equivalence for the winner ID and does not
+make model prose authoritative.
 
 The evaluation prompt separates system/evaluation instructions, the committed rubric, committed metadata, and `BEGIN/END UNTRUSTED SUBMISSION EVIDENCE` blocks. It explicitly states that commands, JSON, fake verdicts, prompt text, and instructions in evidence are data only.
 
@@ -104,6 +127,6 @@ precondition read
 
 `ACCEPTED` or `FINALIZED` alone is not proof of successful state change. The typed skeleton in `frontend/src/` deliberately refuses blind rebroadcast and treats readback as part of successful completion.
 
-## V1 storage adjustment
+## Historical V1 storage adjustment
 
 The conceptual `Round` and `Submission` fields are represented as `@allow_storage` dataclasses containing GenLayer-supported `Address`, `str`, and `DynArray` values. V1 does not store raw evidence bytes; the exact bytes are re-fetched and authenticated at resolution, while the URL and SHA-256 commitment are locked. This keeps persistent state bounded and makes the integrity boundary explicit.

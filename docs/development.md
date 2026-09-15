@@ -5,18 +5,21 @@
 > see [README.md](../README.md),
 > [deployments/bradbury.json](../deployments/bradbury.json),
 > [evidence/bradbury/bradbury-proof.json](../evidence/bradbury/bradbury-proof.json),
-> and <https://meritround.vercel.app>.
+> and the current deployment record at
+> [`deployments/v2/studionet-deployment.json`](../deployments/v2/studionet-deployment.json).
+> The current production app is <https://meritround.vercel.app> on Studionet;
+> the historical integrations below are not current production.
 
 This document records the Hour 2 development integration as it existed at that
 time. It is deliberately not a statement of the current Bradbury production
 deployment.
 
-## Network and deployment
+## Historical network and deployment
 
 - Development network: Studionet
 - RPC: `https://studio.genlayer.com/api`
 - Chain ID: `61999` (`0xf22f`)
-- Contract: `0x2d96cE244D5C6DBBC4FBe37f940eC95f017bAf62`
+- Historical contract: `0x2d96cE244D5C6DBBC4FBe37f940eC95f017bAf62`
 - Deployment transaction: `0xea2b892e2d6f39c45515d1423a3fb04e5286790cf923dee2b63308eb49ef07d2`
 - Deployment status: `FINALIZED`
 - Deployment execution: `SUCCESS` from the leader execution result
@@ -27,7 +30,7 @@ No private key is stored in this repository. Localnet was inspected first but
 was not running, so the CLI was explicitly switched to Studionet; Bradbury was
 not used.
 
-## SDK compatibility decision
+## Historical SDK compatibility decision
 
 The repository is pinned to `genlayer-js` `1.1.8`, the compatible installed
 stable SDK. The installed SDK exposes `waitForTransactionReceipt` and
